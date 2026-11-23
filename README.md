@@ -38,7 +38,7 @@ It is suitable for games whose rules are defined by the author—from text adven
 ## Download Releases
 
 ### Hello World
-Download the [Windows release package], extract it, and double-click `LuaWAG.exe`.
+Download the [Windows release package](./releases/tag/v0.1.0), extract it, and double-click `LuaWAG.exe`.
 
 You should see the engine name and a slogan on the splash screen.
 
@@ -216,7 +216,7 @@ If you try to build on another platform, you are welcome to send the system vers
 Email: LingChingicecraft@outlook.com
 Engine QQ group: 185485426
 
-For related information, see [NOTICE].
+For related information, see [NOTICE](./NOTICE.md).
 
 ## Companion Projects (in development)
 
@@ -277,7 +277,7 @@ LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维�
 ## 下载 Release
 
 ### Hello World
-下载[Windows发行包]，解压后双击打开LuaWAG.exe。
+下载[Windows发行包](./releases/tag/v0.1.0)，解压后双击打开LuaWAG.exe。
 
 应该能看到启动画面上的引擎名字和一句Slogan。
 
@@ -455,7 +455,7 @@ Linux、macOS、Windows ARM 目前都没构建过，也没跑过。
 邮箱：LingChingicecraft@outlook.com
 引擎QQ交流群：185485426
 
-还有一些相关内容请见[NOTICE]
+还有一些相关内容请见[NOTICE](./NOTICE.md)
 
 ## 配套项目（开发中）
 

@@ -1,0 +1,46 @@
+# =============================================================================
+#  .gitignore
+#
+#  【只有一条实质规则：构建产物不进版本控制】
+#      理由：构建目录里的一切都能由源码与 BUILD.md 里记录的版本号重建。
+#      把产物入库会让"这个二进制是从哪份源码、哪个版本的依赖编出来的"
+#      变成一个需要额外保管的事实 —— 而那正是我们在别处一直避免的东西
+#      （"两条路通向同一个文件"）。
+# =============================================================================
+
+# ---- 构建目录 ----
+/build/
+
+# ---- 编辑器与工具的本地状态 ----
+# 【注意：.vscode/ 下有两只文件是**要入库**的】
+#     settings.json          —— cmake.sourceDirectory / useCMakePresets
+#     c_cpp_properties.json  —— IntelliSense 指向 compile_commands.json
+#   它们是"怎么用这个项目"的一部分，不是私人偏好。
+#   而下面这几只是私人的：
+.vscode/*.log
+.vscode/ipch/
+.vscode/.cmake/
+
+# ---- CMake 的本地缓存（若有人不小心在源码目录里配置过）----
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# ---- 依赖的本地检出（将来若用 FetchContent）----
+# 【现在不需要】因为依赖全部由 pacman 提供（见 BUILD.md 第二节）。
+# 但留在这里，省得将来第一次用 FetchContent 时把几百 MB 检出不慎入库。
+/_deps/
+
+# ---- 平台杂项 ----
+*.swp
+*~
+Thumbs.db
+desktop.ini
+
+# ---- 探针运行日志 ----
+/probes/logs/
+/probes/logs_rerun/
+
+# ---- 本地副本 ----
+*- 副本.txt

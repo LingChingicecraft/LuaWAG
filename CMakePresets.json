@@ -1,0 +1,58 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/ucrt64/bin/ninja.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug（ucrt64 / Ninja）",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release（ucrt64 / Ninja / 静态运行库）",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXE_LINKER_FLAGS": "-static -static-libgcc -static-libstdc++"
+      }
+    },
+
+    {
+      "name": "debug-with-deps",
+      "inherits": "debug",
+      "displayName": "Debug + 外部依赖（SDL3 / LuaJIT）",
+      "cacheVariables": {
+        "WAG_NO_EXTERNAL_DEPS": "OFF"
+      }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "debug",   "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "debug-with-deps", "configurePreset": "debug-with-deps" }
+  ]
+}

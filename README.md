@@ -57,7 +57,7 @@ You can then play a bullet-hell action game sample with a built-in replay system
 
 You can modify the sample game's code, or use it as a reference to build your game from scratch.
 
-For details, see the [API manual].
+For details, see the [API manual](./doc/).
 
 ## Building from Source
 
@@ -296,7 +296,7 @@ LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维�
 
 你可以修改这个游戏示例的代码。也可以参考其代码从零开发你的游戏。
 
-详细内容请参阅[API手册]
+详细内容请参阅[API手册](./doc/)
 
 ## 从源码构建
 

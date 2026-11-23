@@ -240,7 +240,10 @@ void renderer::debug_mask_selftest_() {
     done = true;
 
     const std::string pool = "__mask_selftest";
-    light_occluders_new(pool);
+    if (!light_occluders_new(pool)) {
+        log::record("mask", "自检：池已存在，跳过");
+        return;
+    }
     light::occluder far_o;
     far_o.x = 0.0f;
     far_o.y = 0.0f;
@@ -248,13 +251,19 @@ void renderer::debug_mask_selftest_() {
     far_o.h = 300.0f;
     far_o.depth = 200;
     far_o.transmission = 128;
-    light_occluders_spawn(pool, far_o);
+    const auto far_h = light_occluders_spawn(pool, far_o);
     light::occluder near_o = far_o;
     near_o.w = 120.0f;
     near_o.h = 120.0f;
     near_o.depth = 10;
     near_o.transmission = 0;
-    light_occluders_spawn(pool, near_o);
+    const auto near_h = light_occluders_spawn(pool, near_o);
+    if (far_h == 0 || near_h == 0) {
+        log::record("mask", "自检：遮挡者生成失败，跳过");
+        occluder_pools_.erase(pool);
+        occluder_pool_ids_.erase(pool);
+        return;
+    }
 
     render_occluder_mask_();
     bind_render_target_(occluder_mask_);

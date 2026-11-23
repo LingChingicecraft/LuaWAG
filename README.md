@@ -37,6 +37,8 @@ It is suitable for games whose rules are defined by the author—from text adven
 
 ## Download Releases
 
+Version history and known issues: [CHANGELOG.md](CHANGELOG.md).
+
 ### Hello World
 Download the [Windows release package](./releases/tag/v0.1.0), extract it, and double-click `LuaWAG.exe`.
 
@@ -275,6 +277,8 @@ LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维�
   当前实测平台是 Windows 11；SDL3 / OpenGL / LuaJIT 的技术栈为其他桌面平台保留了移植空间，但没有经过验证，也不做兼容性承诺。
 
 ## 下载 Release
+
+版本变化与已知问题见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### Hello World
 下载[Windows发行包](./releases/tag/v0.1.0)，解压后双击打开LuaWAG.exe。

@@ -152,7 +152,29 @@ ALTERNATIVE B - Public Domain (www.unlicense.org)
 
 ---
 
-## 7. OpenGL
+## 7. Windows 运行时 DLL
+
+Release 产物除 `LuaWAG.exe` 外，还会带上以下运行时 DLL。  
+它们不是 LuaWAG 源码的一部分，而是 MSYS2 UCRT64、SDL3 与 LuaJIT 的运行时依赖。
+
+| DLL | 来源 / 用途 | 许可证 |
+|---|---|---|
+| `libgcc_s_seh-1.dll` | GCC 运行时（异常、内建函数等） | **GPLv3 + GCC Runtime Library Exception 3.1** |
+| `libstdc++-6.dll` | GNU C++ 标准库运行时 | **GPLv3 + GCC Runtime Library Exception 3.1** |
+| `libiconv-2.dll` | GNU libiconv 字符编码转换库 | **GNU LGPL（库部分）** |
+| `libwinpthread-1.dll` | mingw-w64 winpthreads | **MIT AND BSD-3-Clause** |
+| `SDL3.dll` | SDL3 运行时 | **zlib License**（详见第 3 节） |
+| `lua51.dll` | LuaJIT 运行时 | **MIT License**（详见第 4 节） |
+
+其中：
+
+- `libgcc` 与 `libstdc++` 使用 GPLv3，但带有 **GCC Runtime Library Exception 3.1**；该例外允许非 GPL 程序使用并分发这些运行时，不要求 LuaWAG 本体改用 GPL。
+- `libiconv` 的**库部分**使用 GNU LGPL；发布包以独立 DLL 形式携带它，应保留 LGPL 许可文本，并按 LGPL 提供对应的源码获取方式，同时允许用户替换该 DLL。
+- `libwinpthread` 同时带有 MIT 与 BSD-3-Clause 条款，保留其版权与许可文本即可。
+
+---
+
+## 8. OpenGL
 
 | 项目 | 说明 |
 |---|---|
@@ -173,7 +195,7 @@ ALTERNATIVE B - Public Domain (www.unlicense.org)
 
 ---
 
-## 8. 许可兼容性
+## 9. 许可兼容性
 
 上述组件的许可证类型：
 
@@ -182,16 +204,25 @@ SDL3              zlib License
 LuaJIT            MIT License
 stb_truetype      Public Domain / MIT
 stb_vorbis        Public Domain / MIT
+libgcc/libstdc++  GPLv3 + GCC Runtime Library Exception 3.1
+libiconv          GNU LGPL（库部分）
+libwinpthread     MIT AND BSD-3-Clause
 OpenGL            系统 API / Khronos 规范，不是捆绑实现
 LuaWAG 本体        Apache License 2.0
 ```
 
-这些组件与 Apache-2.0 项目一起分发时不存在额外的 copyleft 约束。
-如果将来把 SDL3、LuaJIT 的源码或二进制直接放进发布包，应同时保留它们各自的版权与许可文本。
+这些组件的许可义务各不相同：
+
+- SDL3、LuaJIT、stb、libwinpthread 是宽松许可，保留版权与许可文本即可；
+- libgcc / libstdc++ 是 GPLv3 + GCC Runtime Library Exception 3.1，该例外允许非 GPL 程序使用并分发这些运行时；
+- libiconv 是 LGPL 库，作为独立 DLL 发布时应保留 LGPL 文本、提供对应源码获取方式，并允许替换该 DLL。
+
+这些义务不要求 LuaWAG 本体的 Apache-2.0 代码改用其他许可证。  
+如果将来把 SDL3、LuaJIT 或其他运行时的源码/二进制直接放进发布包，应同时保留它们各自的版权与许可文本。
 
 ---
 
-## 9. 上游链接汇总
+## 10. 上游链接汇总
 
 ```text
 SDL3
@@ -208,6 +239,17 @@ https://github.com/nothings/stb/blob/master/stb_truetype.h
 
 stb_vorbis
 https://github.com/nothings/stb/blob/master/stb_vorbis.c
+
+GCC runtime / libstdc++
+https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
+https://www.gnu.org/licenses/gcc-exception-3.1.html
+
+GNU libiconv
+https://www.gnu.org/software/libiconv/
+
+mingw-w64 winpthreads
+https://www.mingw-w64.org/
+https://packages.msys2.org/packages/mingw-w64-x86_64-winpthreads
 
 OpenGL / Khronos
 https://www.khronos.org/opengl/

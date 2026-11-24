@@ -5,31 +5,48 @@
 
 ---
 
-## 未发布
+## 0.1.1 — 未发布
 
-### 计划在 0.1.1 修复
+### 修复
 
 - **进程退出时的 Lua 生命周期顺序**  
-  当前带 Lua `__gc` / userdata finalizer 的脚本，在退出阶段可能在字体、音频、SDL、日志关闭之后才被回收。  
-  普通项目目前退出正常；为避免退出异常，建议把需要持久化的收尾工作放在 `on_game_exit` 中。
+  关闭序列现在在 `on_game_exit` 之后、字体 / 音频 / SDL / 日志关闭之前调用 `script().destroy()`。  
+  这样 `lua_close` 触发的 `__gc` 仍能访问仍然存在的引擎资源；`~engine` 保留幂等兜底。
 
 - **光照链路固定 1920×1080 设计空间**  
-  默认 `1920×1080` 下光照正常；如果项目修改了 render 尺寸，灯与遮挡仍按固定设计空间解释，可能错位。  
-  修复方向是让光照跟随当前渲染范围；若需要改变 shader/API 契约，则可能推迟到 `0.2.0`。
+  新增独立的光照空间：
+
+  ```lua
+  wag.light.set_space { l = -960, b = -540, w = 1920, h = 1080 }
+  wag.light.get_space()
+  ```
+
+  未显式设置时，首次使用取启动后的 render；显式设置后以作者设置为准。  
+  遮挡图顶点映射已改用当前 light space，不再固定按 `p / 960`、`p / 540`。
 
 - **Release 构建的未使用变量警告**  
-  `renderer.cpp` 中的 `slack` 在 `NDEBUG` 下会被 `assert` 去掉，Release 构建会多一条警告。  
-  不影响运行，计划清理。
+  `renderer.cpp` 中 `slack` 只由 `assert` 使用；`NDEBUG` 下变量与断言一起消失，Release 构建不再产生未使用变量警告。
 
-- **开发期探针入口清理**  
-  公开的 `wag.draw.set_probe_shaders` 已移除；`WAG_RT_SELFTEST` 等内部自检环境变量保留，用于引擎内部验收。
+- **公开的临时探针入口**  
+  已移除公开的 `wag.draw.set_probe_shaders`。  
+  `WAG_RT_SELFTEST`、`WAG_INSTANCE_SELFTEST` 等内部自检环境变量保留，用于引擎内部验收。
 
-### 0.1.1 已知限制
+### 变更与兼容性
+
+- 自定义 `light.vs` / `light.fs` 需要接收新的 `u_light_space`（`l, b, w, h`）。  
+  旧 shader 仍能加载，但会继续使用自己的固定空间常量；要支持自定义 light space，必须同步更新。
+- 光图 / 遮蔽图 / 带掩码的分辨率仍固定为 `960×540`；改变的是它们覆盖的世界矩形。
+
+### 已知限制
 
 - **自定义光照空间下的 `self_only` 带掩码**  
   `wag.light.set_space` 已经支持独立光照空间；但 band mask 仍按 render 空间生成。  
   如果项目同时使用 `self_only` 带，必须保持 light space 与 render 相同；否则带掩码会与光照采样空间不一致。  
   解除这条限制需要把 band mask 也映射到 light space，计划留给后续版本。
+
+- **`__gc` 抛出的错误没有 L1 回执**  
+  `__gc` 正常执行时仍能写日志；但如果 `__gc` 自身抛错，LuaJIT 会吞掉错误，当前不会产生 L1。  
+  业务收尾仍应放在 `on_game_exit`；受保护的 finalizer 批处理留给后续版本。
 
 ### 计划在 0.2.0 处理
 
@@ -37,7 +54,8 @@
 - 渲染目标绑定的完整实现；
 - 引用容器数诊断；
 - 其它尚未落地的渲染维度；
-- 更完整的跨平台支持。
+- 更完整的跨平台支持；
+- 自定义光照空间下的 band mask 映射。
 
 ---
 

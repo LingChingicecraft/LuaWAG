@@ -676,11 +676,14 @@ void renderer::begin_frame(const space::transform& transform,
     {
  // 【夹取之前先断言】"内容偏一点"这类静默缺陷要变成一次响亮的失败；
  // 而 slack = 2 像素是给取整留的余量（不是给算错的余量）。
+ // Release 下 assert 被去掉，slack 也必须一起消失，否则会留下未使用变量警告。
+#if !defined(NDEBUG)
         const int slack = 2;
         assert(vx >= -slack && vy >= -slack && vx + vw <= fb_w + slack &&
                vy + vh <= fb_h + slack &&
                "视口矩形越出帧缓冲过多 —— 像是被某个推导算错了"
                "（典型：拿 DIP × dpi_scale）。请查坐标系链条第 5 条。");
+#endif
     }
 
  // 【夹到帧缓冲范围】letterbox 在极端窗口比例下可能让 box 略微越界；

@@ -40,7 +40,7 @@ It is suitable for games whose rules are defined by the author—from text adven
 Version history and known issues: [CHANGELOG.md](CHANGELOG.md).
 
 ### Hello World
-Download the [Windows release package](./releases/tag/v0.1.0), extract it, and double-click `LuaWAG.exe`.
+Download the [Windows release package](./releases/tag/v0.1.1), extract it, and double-click `LuaWAG.exe`.
 
 You should see the engine name and a slogan on the splash screen.
 
@@ -281,7 +281,7 @@ LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维�
 版本变化与已知问题见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### Hello World
-下载[Windows发行包](./releases/tag/v0.1.0)，解压后双击打开LuaWAG.exe。
+下载[Windows发行包](./releases/tag/v0.1.1)，解压后双击打开LuaWAG.exe。
 
 应该能看到启动画面上的引擎名字和一句Slogan。
 

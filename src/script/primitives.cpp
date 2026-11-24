@@ -2070,19 +2070,6 @@ int l_time_get(lua_State* L) {
     return 1;
 }
 
-/// wag.draw.set_probe_shaders(dir) —— 【临时探针入口 · 交付前删除】
-///
-/// 【为什么参数是"目录"而不是"文件名清单"】文件名清单是引擎侧的实验细节；
-/// 脚本只需要告诉引擎"外置着色器在哪"。目录本身由脚本用
-/// `resolve.luminosa_dir() .. "/Project/shaders"` 拼 —— 这是 的要求
-///（**引擎不解析路径**，拼接在 Lua 侧）。
-int l_draw_set_probe_shaders(lua_State* L) {
-    auto& eng = engine_of(L);
-    const char* dir = required_string(L, 1, "dir", "draw.set_probe_shaders");
-    eng.renderer().set_shader_probe_dir(std::string(dir));
-    return 0;
-}
-
 /// wag.image.load_from_file(name, path) -> handle
 int l_image_load_from_file(lua_State* L) {
     auto& eng = engine_of(L);
@@ -4374,8 +4361,6 @@ void register_primitives(state& st, wag::engine& eng) {
     (lua_pushcclosure(L, (&l_draw_set_state), 0), lua_setfield(L, -2, "set_state"));
     (lua_pushcclosure(L, (&l_draw_get_state), 0), lua_setfield(L, -2, "get_state"));
     (lua_pushcclosure(L, (&l_draw_reset_state), 0), lua_setfield(L, -2, "reset_state"));
-
-    (lua_pushcclosure(L, (&l_draw_set_probe_shaders), 0), lua_setfield(L, -2, "set_probe_shaders"));
 
     lua_pushcclosure(L, (l_draw_load_shader), 0);
     lua_setfield(L, -2, "load_shader");

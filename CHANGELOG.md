@@ -24,6 +24,13 @@
 - **开发期探针入口清理**  
   部分 `set_probe_shaders`、自检入口和临时调试入口需要决定保留为正式内部工具，还是在发布构建中移除。
 
+### 0.1.1 已知限制
+
+- **自定义光照空间下的 `self_only` 带掩码**  
+  `wag.light.set_space` 已经支持独立光照空间；但 band mask 仍按 render 空间生成。  
+  如果项目同时使用 `self_only` 带，必须保持 light space 与 render 相同；否则带掩码会与光照采样空间不一致。  
+  解除这条限制需要把 band mask 也映射到 light space，计划留给后续版本。
+
 ### 计划在 0.2.0 处理
 
 - `end_frame` 的全屏回画 / 运行效果；

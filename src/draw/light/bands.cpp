@@ -171,6 +171,8 @@ renderer::light_stats_snapshot renderer::take_light_stats() noexcept {
 //    光 shader 采样一张 RGBA8 掩码，r=覆盖。
 //  【什么时候画】commit 里、sort_and_emit_draws_ 之前（之后 items 就空了）。
 //  【坐标】draw_items 的顶点是**窗口像素**；用 frame_box_ 反算到渲染盒 0..1。
+//  ⚠️ 带掩码目前仍按 render 空间生成；自定义 light space 与 render 不同时，
+//     self_only 的带掩码会与 light.fs 的采样空间不一致。0.1.1 先保留此限制。
 // =============================================================================
 
 void renderer::render_band_mask_(std::int64_t from, std::int64_t to) {

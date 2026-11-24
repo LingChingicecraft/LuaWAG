@@ -688,6 +688,13 @@ public:
     void light_set_exposure(float v) noexcept { exposure_ = v; }
     [[nodiscard]] float light_exposure() const noexcept { return exposure_; }
 
+ /// 光照覆盖的世界矩形（与 set_viewport 分离；见 D-LIGHT-001）。
+    void light_set_space(const space::rect& r) noexcept;
+    [[nodiscard]] space::rect light_space() const noexcept { return light_space_; }
+
+ /// 每帧由帧结构传入当前 render；只在作者未显式设置时提供默认值。
+    void set_render_space(const space::rect& r) noexcept;
+
  /// 载入光 shader（目录；读 light.vs / light.fs）。失败 ⇒ 返回 false + err。
     [[nodiscard]] bool light_load_shader(const std::string& dir, std::string& err);
 
@@ -1394,6 +1401,11 @@ private:
 
  /// 曝光（D6.5：全局每帧一个值；只作用于光，不作用于场景）
     float exposure_ = 1.0f;
+
+ /// 光照覆盖的世界矩形；与 viewport 的 render 分离。
+    space::rect light_space_{-960.0, -540.0, 1920.0, 1080.0};
+    bool light_space_explicit_ = false;
+    bool light_space_initialized_ = false;
 
  /// 本帧的光（一次性；帧末渲染后清空）
     std::vector<light::light> lights_;

@@ -13,23 +13,24 @@
 namespace wag::light {
 
 // -----------------------------------------------------------------------------
-//  设计分辨率（固定 16:9）
+//  光图分辨率
 //
-//  【这是设计常量，不是运行时自适应】
-//    项目选定 1920×1080 作为世界/视口设计空间；灯光链路固定用它的半分辨率：
-//      世界  1920 × 1080
-//      光图   960 ×  540
-//      遮蔽图 960 ×  540
-//      带掩码 960 ×  540
-//    ⇒ 光图与场景同比例，合成到 16:9 视口时不会被纵向拉伸。
+//  【这里只固定“光图有多大”，不再固定“世界有多大”】
+//    光照覆盖的世界矩形由 renderer 的 light space 决定：
+//      · 默认取启动后的当前 render；
+//      · 作者可用 wag.light.set_space{...} 显式覆盖。
+//    光图/遮蔽图/带掩码仍使用半分辨率：
+//      光图   960 × 540
+//      遮蔽图 960 × 540
+//      带掩码 960 × 540
+//    ⇒ 光图分辨率与 light space 的世界尺寸解耦：
+//      局部 light space 会更清晰，大范围 light space 会更低清。
 //
-//  【改设计分辨率时】这里、light.vs / light.fs 里的世界常量必须一起改；
-//    它们是同一个固定设计的两半。
+//  【改光图分辨率时】这里和 shader 的 mask 尺寸要一起改；
+//    light space 的矩形不在本文件里固定。
 // -----------------------------------------------------------------------------
-inline constexpr int design_width = 1920;
-inline constexpr int design_height = 1080;
-inline constexpr int map_width = design_width / 2;   // 960
-inline constexpr int map_height = design_height / 2; // 540
+inline constexpr int map_width = 960;
+inline constexpr int map_height = 540;
 
 enum class kind : std::uint8_t { point = 0, cone = 1, beam = 2, quad = 3 };
 enum class reach : std::uint8_t { below = 0, self_only = 1 };

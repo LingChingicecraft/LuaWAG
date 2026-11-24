@@ -4045,6 +4045,30 @@ int l_light_exposure(lua_State* L) {
     return 0;
 }
 
+/// wag.light.set_space{ l, b, w, h } / get_space()
+int l_light_set_space(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    const double l = l_light_num(L, 1, "l");
+    const double b = l_light_num(L, 1, "b");
+    const double w = l_light_num(L, 1, "w");
+    const double h = l_light_num(L, 1, "h");
+    if (!(w > 0.0) || !(h > 0.0)) {
+        return luaL_error(L, "light.set_space 的 w/h 必须 > 0");
+    }
+    engine_of(L).renderer().light_set_space(space::rect{l, b, w, h});
+    return 0;
+}
+
+int l_light_get_space(lua_State* L) {
+    const space::rect r = engine_of(L).renderer().light_space();
+    lua_newtable(L);
+    lua_pushnumber(L, static_cast<lua_Number>(r.l)); lua_setfield(L, -2, "l");
+    lua_pushnumber(L, static_cast<lua_Number>(r.b)); lua_setfield(L, -2, "b");
+    lua_pushnumber(L, static_cast<lua_Number>(r.w)); lua_setfield(L, -2, "w");
+    lua_pushnumber(L, static_cast<lua_Number>(r.h)); lua_setfield(L, -2, "h");
+    return 1;
+}
+
 /// wag.light.load_shader(dir)
 int l_light_load_shader(lua_State* L) {
     const char* dir = luaL_checkstring(L, 1);
@@ -4371,6 +4395,8 @@ void register_primitives(state& st, wag::engine& eng) {
     lua_newtable(L);
     (lua_pushcclosure(L, (&l_light_add), 0), lua_setfield(L, -2, "add"));
     (lua_pushcclosure(L, (&l_light_exposure), 0), lua_setfield(L, -2, "exposure"));
+    (lua_pushcclosure(L, (&l_light_set_space), 0), lua_setfield(L, -2, "set_space"));
+    (lua_pushcclosure(L, (&l_light_get_space), 0), lua_setfield(L, -2, "get_space"));
     (lua_pushcclosure(L, (&l_light_load_shader), 0), lua_setfield(L, -2, "load_shader"));
     (lua_pushcclosure(L, (&l_light_band), 0), lua_setfield(L, -2, "band"));
     (lua_pushcclosure(L, (&l_light_commit), 0), lua_setfield(L, -2, "commit"));

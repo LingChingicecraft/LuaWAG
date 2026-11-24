@@ -984,6 +984,7 @@ void frame_pipeline::stage_render_begin(engine& eng) {
     geom.dip = platform::dip_size{fs.geom.dip_w, fs.geom.dip_h};
     geom.pixel = platform::dip_size{fs.geom.pixel_w, fs.geom.pixel_h};
     geom.scale = fs.geom.scale;
+    eng.renderer().set_render_space(eng.viewport().get_render());
     eng.renderer().begin_frame(eng.viewport().get_transform(),
                                eng.viewport().get_viewport(), geom);
 

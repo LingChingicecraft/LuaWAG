@@ -5,7 +5,8 @@
 //    · 池的增删改查（句柄规则见 D1）
 //    · 每帧把存活的遮挡者画进半分辨率 RGBA8 遮蔽图（R=覆盖，B=透射）
 //    · 一个自检：近遮挡者必须覆盖远遮挡者
-//  【坐标】世界 → NDC 直接用 p/960、p/540（遮蔽图覆盖渲染盒 -960..960 / -540..540）。
+//  【坐标】世界坐标 → 光图 NDC：由当前 light space 的 l/b/w/h 决定
+//  （默认取启动后的 render；见 wag.light.set_space）。
 // =============================================================================
 
 #include "draw/light/shader_util.hpp"
@@ -153,6 +154,7 @@ void renderer::render_occluder_mask_() {
         gl_api::uint_t quad = 0;
         gl_api::uint_t inst = 0;
         gl_api::uint_t prog = 0;
+        gl_api::int_t u_light_space = -1;
         bool ready = false;
     };
     static resources r;
@@ -162,6 +164,7 @@ layout(location = 0) in vec2 a_corner;
 layout(location = 1) in vec4 a_rect;
 layout(location = 2) in float a_rot;
 layout(location = 3) in float a_trans;
+uniform vec4 u_light_space;
 out float v_trans;
 void main() {
     vec2 c = a_rect.xy;
@@ -172,7 +175,9 @@ void main() {
     float sn = sin(rad);
     vec2 p = c + vec2(local.x * cs - local.y * sn,
                       local.x * sn + local.y * cs);
-    gl_Position = vec4(p.x / 960.0, p.y / 540.0, 0.0, 1.0);
+    vec2 ndc = vec2((p.x - u_light_space.x) / max(u_light_space.z, 0.0001),
+                    (p.y - u_light_space.y) / max(u_light_space.w, 0.0001));
+    gl_Position = vec4(ndc * 2.0 - 1.0, 0.0, 1.0);
     v_trans = a_trans;
 }
 )";
@@ -186,6 +191,8 @@ void main() { frag = vec4(1.0, 0.0, clamp(v_trans, 0.0, 1.0), 1.0); }
         r.prog = light_link_stage(vs, fs);
         gl_api::delete_shader(vs);
         gl_api::delete_shader(fs);
+
+        r.u_light_space = gl_api::get_uniform_location(r.prog, "u_light_space");
 
         gl_api::gen_vertex_arrays(1, &r.vao);
         gl_api::gen_buffers(1, &r.quad);
@@ -221,6 +228,13 @@ void main() { frag = vec4(1.0, 0.0, clamp(v_trans, 0.0, 1.0), 1.0); }
                         static_cast<gl_api::sizeiptr_t>(list.size() * sizeof(inst)),
                         list.data(), gl_api::stream_draw);
     gl_api::use_program(r.prog);
+    if (r.u_light_space >= 0) {
+        gl_api::uniform_4f(r.u_light_space,
+                           static_cast<float>(light_space_.l),
+                           static_cast<float>(light_space_.b),
+                           static_cast<float>(light_space_.w),
+                           static_cast<float>(light_space_.h));
+    }
     gl_api::draw_arrays_instanced(GL_TRIANGLE_STRIP, 0, 4,
                                   static_cast<gl_api::int_t>(list.size()));
     gl_api::bind_vertex_array(0);

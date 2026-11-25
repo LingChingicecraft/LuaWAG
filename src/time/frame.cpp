@@ -329,6 +329,7 @@ void frame_pipeline::run_one_frame(engine& eng) {
  // 呈现的画面"仍然属于旧尺寸 —— 于是不会出现"画到一半窗口变了"。
  //
  // 【命令式的收口点】引擎在这里只做一次"申请"，不记住、不纠正、不吸附。
+    eng.apply_pending_fullscreen();
     eng.apply_pending_window_size();
 
  // =========================================================================

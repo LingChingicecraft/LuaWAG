@@ -34,6 +34,7 @@
 #include "text/font.hpp"
 #include "platform/paths.hpp"
 #include "platform/utf8_path.hpp"
+#include "platform/window.hpp"
 #include "space/viewport.hpp"
 
 #include <string_view>
@@ -544,6 +545,93 @@ int l_space_get_frame_size(lua_State* L) {
     lua_pushnumber(L, static_cast<lua_Number>(eng.frame_pixel_w()));
     lua_pushnumber(L, static_cast<lua_Number>(eng.frame_pixel_h()));
     return 2;
+}
+
+// ---- wag.space fullscreen / display ----
+
+bool parse_fullscreen_mode(const char* text, platform::fullscreen_mode& out) {
+    if (text == nullptr) {
+        return false;
+    }
+    if (std::strcmp(text, "none") == 0) {
+        out = platform::fullscreen_mode::none;
+        return true;
+    }
+    if (std::strcmp(text, "borderless") == 0) {
+        out = platform::fullscreen_mode::borderless;
+        return true;
+    }
+    if (std::strcmp(text, "exclusive") == 0) {
+        out = platform::fullscreen_mode::exclusive;
+        return true;
+    }
+    return false;
+}
+
+const char* fullscreen_mode_name(platform::fullscreen_mode mode) noexcept {
+    switch (mode) {
+    case platform::fullscreen_mode::borderless:
+        return "borderless";
+    case platform::fullscreen_mode::exclusive:
+        return "exclusive";
+    case platform::fullscreen_mode::none:
+    default:
+        return "none";
+    }
+}
+
+/// wag.space.set_fullscreen("none" | "borderless" | "exclusive")
+int l_space_set_fullscreen(lua_State* L) {
+    const char* text = lua_tostring(L, 1);
+    platform::fullscreen_mode mode{};
+    if (text == nullptr || !parse_fullscreen_mode(text, mode)) {
+        wag::error_value e;
+        e.cls = wag::error_class::api_misuse;
+        e.where = "set_fullscreen 的参数";
+        e.got = text == nullptr ? luaL_typename(L, 1) : text;
+        e.want = "\"none\" / \"borderless\" / \"exclusive\"";
+        wag::fail_boundary(e);
+    }
+    engine_of(L).request_fullscreen(mode);
+    return 0;
+}
+
+/// wag.space.get_fullscreen() -> "none" | "borderless" | "exclusive"
+int l_space_get_fullscreen(lua_State* L) {
+    lua_pushstring(L, fullscreen_mode_name(engine_of(L).current_fullscreen()));
+    return 1;
+}
+
+/// wag.space.get_output_size() -> w, h（当前输出/后缓冲像素）
+int l_space_get_output_size(lua_State* L) {
+    const platform::dimensions d = engine_of(L).window().get_pixel_size();
+    lua_pushnumber(L, static_cast<lua_Number>(d.w));
+    lua_pushnumber(L, static_cast<lua_Number>(d.h));
+    return 2;
+}
+
+void push_display_rect(lua_State* L, const platform::display_rect& r) {
+    lua_createtable(L, 0, 4);
+    lua_pushinteger(L, r.x);
+    lua_setfield(L, -2, "x");
+    lua_pushinteger(L, r.y);
+    lua_setfield(L, -2, "y");
+    lua_pushinteger(L, r.w);
+    lua_setfield(L, -2, "w");
+    lua_pushinteger(L, r.h);
+    lua_setfield(L, -2, "h");
+}
+
+/// wag.space.get_display_bounds() -> { x, y, w, h }
+int l_space_get_display_bounds(lua_State* L) {
+    push_display_rect(L, engine_of(L).window().get_display_bounds());
+    return 1;
+}
+
+/// wag.space.get_display_work_area() -> { x, y, w, h }
+int l_space_get_display_work_area(lua_State* L) {
+    push_display_rect(L, engine_of(L).window().get_display_work_area());
+    return 1;
 }
 
 // =============================================================================
@@ -4246,6 +4334,17 @@ void register_primitives(state& st, wag::engine& eng) {
  // 整帧像素尺寸（C1，2026-11-16）：只给整屏效果用，别拿来做布局。
     lua_pushcclosure(L, (l_space_get_frame_size), 0);
     lua_setfield(L, -2, "get_frame_size");
+
+    lua_pushcclosure(L, (l_space_set_fullscreen), 0);
+    lua_setfield(L, -2, "set_fullscreen");
+    lua_pushcclosure(L, (l_space_get_fullscreen), 0);
+    lua_setfield(L, -2, "get_fullscreen");
+    lua_pushcclosure(L, (l_space_get_output_size), 0);
+    lua_setfield(L, -2, "get_output_size");
+    lua_pushcclosure(L, (l_space_get_display_bounds), 0);
+    lua_setfield(L, -2, "get_display_bounds");
+    lua_pushcclosure(L, (l_space_get_display_work_area), 0);
+    lua_setfield(L, -2, "get_display_work_area");
     lua_setfield(L, -2, "space");
 
  // ---- wag.argv（控制通道：启动参数原样交给脚本）----

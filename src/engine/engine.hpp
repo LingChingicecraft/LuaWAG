@@ -59,6 +59,7 @@
 // -----------------------------------------------------------------------------
 namespace wag::platform {
 class window;
+enum class fullscreen_mode : std::uint8_t;
 }
 
 namespace wag::draw {
@@ -189,13 +190,17 @@ enum class pause_source : std::uint8_t {
 
     /// 窗口失去输入焦点。
     focus = 1u << 2,
+
+    /// 全屏模式切换中（引擎自己按住的过渡源）。
+    fullscreen = 1u << 3,
 };
 
 /// 全部已知源（用于"没有未知位"的断言）。
 inline constexpr std::uint8_t pause_source_all =
     static_cast<std::uint8_t>(pause_source::user) |
     static_cast<std::uint8_t>(pause_source::drag) |
-    static_cast<std::uint8_t>(pause_source::focus);
+    static_cast<std::uint8_t>(pause_source::focus) |
+    static_cast<std::uint8_t>(pause_source::fullscreen);
 
 /// **脚本可以解除**的源。
 ///
@@ -495,6 +500,22 @@ public:
     [[nodiscard]] double requested_window_h() const noexcept;
 
     // -------------------------------------------------------------------------
+    //  全屏模式请求（命令式；帧末应用）
+    // -------------------------------------------------------------------------
+
+    /// 请求切换全屏模式。
+    ///
+    /// 【请求】帧末应用；切换期间由 `pause_source::fullscreen` 按住暂停。
+    /// 【失败】平台拒绝 ⇒ 记 L2 并回退窗口模式，不终止游戏。
+    void request_fullscreen(platform::fullscreen_mode mode) noexcept;
+
+    /// 当前窗口实际的全屏模式。
+    [[nodiscard]] platform::fullscreen_mode current_fullscreen() const noexcept;
+
+    /// 是否有尚未应用的全屏请求。
+    [[nodiscard]] bool has_pending_fullscreen() const noexcept;
+
+    // -------------------------------------------------------------------------
     //  部件的访问（显式传递的落点）
     // -------------------------------------------------------------------------
 
@@ -742,6 +763,17 @@ private:
     bool has_applied_window_size_ = false;
     double applied_window_w_ = 0.0;
     double applied_window_h_ = 0.0;
+
+    // -------------------------------------------------------------------------
+    //  全屏模式请求
+    // -------------------------------------------------------------------------
+
+    bool has_pending_fullscreen_ = false;
+    platform::fullscreen_mode pending_fullscreen_ =
+        static_cast<platform::fullscreen_mode>(0);
+
+    /// 应用本帧的全屏请求；失败回退窗口模式并记 L2。
+    void apply_pending_fullscreen() noexcept;
 
     /// 把本帧请求的窗口尺寸应用到平台。
     ///

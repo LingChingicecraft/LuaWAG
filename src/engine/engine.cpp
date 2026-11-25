@@ -348,33 +348,41 @@ const char* state_name(engine_state s) noexcept {
 }
 
 const char* pause_sources_name(std::uint8_t sources) noexcept {
- // 【为什么返回字面量而不是拼接】调用点只用于日志，而日志里
- // "user|focus" 这种组合一共只有 8 种（2^3），穷举比动态拼接更省事，
- // 也避免在 noexcept 函数里分配。
-    switch (sources & pause_source_all) {
-    case 0:
+    // 【不用拼接 std::string】调用点只用于日志；这里用线程局部缓冲，
+    // 避免在 noexcept 诊断函数里分配。
+    static thread_local char out[64];
+    struct item {
+        pause_source bit;
+        const char* name;
+    };
+    constexpr item items[] = {
+        {pause_source::user, "user"},
+        {pause_source::drag, "drag"},
+        {pause_source::focus, "focus"},
+        {pause_source::fullscreen, "fullscreen"},
+    };
+
+    const std::uint8_t active = static_cast<std::uint8_t>(sources & pause_source_all);
+    if (active == 0) {
         return "none";
-    case static_cast<std::uint8_t>(pause_source::user):
-        return "user";
-    case static_cast<std::uint8_t>(pause_source::drag):
-        return "drag";
-    case static_cast<std::uint8_t>(pause_source::focus):
-        return "focus";
-    case static_cast<std::uint8_t>(pause_source::user) |
-        static_cast<std::uint8_t>(pause_source::drag):
-        return "user|drag";
-    case static_cast<std::uint8_t>(pause_source::user) |
-        static_cast<std::uint8_t>(pause_source::focus):
-        return "user|focus";
-    case static_cast<std::uint8_t>(pause_source::drag) |
-        static_cast<std::uint8_t>(pause_source::focus):
-        return "drag|focus";
-    case pause_source_all:
-        return "user|drag|focus";
-    default:
-        break;
     }
-    return "?";
+
+    std::size_t used = 0;
+    out[0] = '\0';
+    for (const item& it : items) {
+        if ((active & static_cast<std::uint8_t>(it.bit)) == 0) {
+            continue;
+        }
+        if (used != 0 && used + 1 < sizeof(out)) {
+            out[used++] = '|';
+        }
+        const char* p = it.name;
+        while (*p != '\0' && used + 1 < sizeof(out)) {
+            out[used++] = *p++;
+        }
+    }
+    out[used] = '\0';
+    return out;
 }
 
 // =============================================================================
@@ -560,6 +568,54 @@ void engine::request_window_size(double w, double h) noexcept {
     has_pending_window_size_ = true;
     pending_window_w_ = w;
     pending_window_h_ = h;
+}
+
+// =============================================================================
+// 全屏模式的请求（命令式）
+// =============================================================================
+
+void engine::request_fullscreen(platform::fullscreen_mode mode) noexcept {
+    if (impl_ == nullptr) {
+        return;
+    }
+    if (!has_pending_fullscreen_ && impl_->win.get_fullscreen() == mode) {
+        return;
+    }
+    has_pending_fullscreen_ = true;
+    pending_fullscreen_ = mode;
+    // 切换期间按住暂停；apply 完成后释放。
+    hold_pause(pause_source::fullscreen);
+}
+
+bool engine::has_pending_fullscreen() const noexcept {
+    return has_pending_fullscreen_;
+}
+
+platform::fullscreen_mode engine::current_fullscreen() const noexcept {
+    if (impl_ == nullptr) {
+        return platform::fullscreen_mode::none;
+    }
+    return impl_->win.get_fullscreen();
+}
+
+void engine::apply_pending_fullscreen() noexcept {
+    if (!has_pending_fullscreen_) {
+        return;
+    }
+
+    const platform::fullscreen_mode mode = pending_fullscreen_;
+    has_pending_fullscreen_ = false;
+
+    const bool accepted = impl_->win.set_fullscreen(mode);
+    if (!accepted && mode != platform::fullscreen_mode::none) {
+        // 独占/无边框失败：回退窗口模式 + L2，游戏继续。
+        impl_->win.set_fullscreen(platform::fullscreen_mode::none);
+        log::warn("engine", "全屏切换失败，回退窗口模式");
+    } else if (!accepted) {
+        log::warn("engine", "退出全屏失败，保持当前窗口状态");
+    }
+
+    release_pause(pause_source::fullscreen);
 }
 
 bool engine::has_requested_window_size() const noexcept {

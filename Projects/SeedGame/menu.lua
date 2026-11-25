@@ -220,7 +220,7 @@ function menu.draw_main()
     font.draw(S.UI_FONT, "踩到BOSS即为击杀。被子弹击中或掉下虚空则重生。跳跃次数没有限制。",
         0.0, 270.0, { color = 0xFFD8D8E8, align = "center", layer = S.UI_LAYER })
     draw_menu_buttons(MENU_ITEMS, M.menu_index, 190.0, 120.0, 520.0, 92.0)
-    font.draw(S.UI_FONT, "上↑/下↑ 选择    Z 确认", 0.0, -320.0, {
+    font.draw(S.UI_FONT, "上箭头/下箭头 选择    Z 确认", 0.0, -320.0, {
         color = 0xFFB8C8D8, align = "center", layer = S.UI_LAYER,
     })
 end

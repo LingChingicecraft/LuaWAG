@@ -418,8 +418,12 @@ bool window::set_fullscreen(fullscreen_mode mode) {
         return true;
     }
 
-    // 第一次进入全屏时保存窗口化状态。
-    if (fullscreen_mode_ == fullscreen_mode::none && !has_windowed_geometry_) {
+    // 每次从窗口化进入全屏时都保存当前状态。
+    // 【为什么不是只保存第一次】退出全屏后玩家可能移动/缩放/最大化窗口，
+    // 再次进入时应恢复到“这次进入前”的状态，而不是第一次的旧状态。
+    // 从 borderless 切到 exclusive 时 fullscreen_mode_ 已非 none，
+    // 因此不会覆盖窗口化状态。
+    if (fullscreen_mode_ == fullscreen_mode::none) {
         int x = 0;
         int y = 0;
         int w = 0;

@@ -11,6 +11,8 @@
 #    powershell -ExecutionPolicy Bypass -File tools/run-selftests.ps1 -Config Release
 # =============================================================================
 
+# 【已过期，待更新】当前构建目录为 LuaWAG-Luminosa-ver0.2.0；本脚本仍保留旧版本路径，暂不纳入 0.2.0 发布流程。
+
 param(
     [string[]]$Config = @("Release", "Debug-Release")
 )

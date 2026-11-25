@@ -8,7 +8,7 @@
 //      window.hpp 里那几个函数。
 //
 //  【本文件最重要的职责不是"调用 SDL3"，而是保证契约】
-//      window.hpp 写下的语义（DIP 尺寸、DPI 比例、不缓存、零尺寸合法）是
+//      window.hpp 写下的语义（窗口尺寸、显示比例、不缓存、零尺寸合法）是
 //      契约；而 SDL3 的实际语义**可能与之不完全一致**。
 //      因此本文件的职责是：**若平台语义与契约不符，就在这里做一次换算**，
 //      使对外的语义仍然是契约所写。契约不因平台的怪癖而变。
@@ -55,7 +55,7 @@
 
 namespace wag::platform {
 
-// 把契约里的 double（DIP）收成 SDL3 要的 int。超范围时钳到边界。
+// 把窗口尺寸收成 SDL3 要的 int。超范围时钳到边界；这里不做 DPI 换算。
 namespace {
 
 [[maybe_unused]] int clamp_size(double v) noexcept {
@@ -676,9 +676,9 @@ bool gamepad_handle_event(const SDL_Event& e) noexcept {
 ///   · 不判断"要不要"：repeat 过滤是输入层的语义（I4），这里只把标志带下去；
 ///   · 不调脚本：与 note_event 同一条纪律（消息路径只写数据）。
 ///
-/// 【坐标单位】SDL3 的鼠标事件坐标就是**窗口坐标**（DIP）；
-///   而 space::transform 的目标域也是窗口坐标（喂给 recompute 的是 DIP 尺寸）
-///   ⇒ 两边同单位。**不要**在平台层再乘 DPI，否则高 DPI 下会偏一倍。
+/// 【坐标单位】SDL3 的鼠标事件坐标就是**窗口坐标**（不是 DIP）；
+///   而 space::transform 的目标域也是窗口坐标（喂给 recompute 的是窗口尺寸）
+///   ⇒ 两边同单位。不要在平台层再乘显示比例；本平台窗口尺寸与像素同值。
 [[nodiscard]] bool translate_input_event(const SDL_Event& e,
                                          input_event& out) noexcept {
     switch (e.type) {
@@ -868,7 +868,7 @@ void window::set_input_sink(input_sink* sink) noexcept {
     }
 
     // 【播种鼠标初始位置】见 window.hpp 的说明。
-    //   · 有焦点：SDL_GetMouseState 返回**相对聚焦窗口**的窗口坐标（DIP），
+    //   · 有焦点：SDL_GetMouseState 返回**相对聚焦窗口**的窗口坐标（不是 DIP），
     //     与 input 的期望同单位，直接喂；
     //   · 无焦点：喂 (0,0)。不读 —— 否则读到的是别的窗口的坐标，
     //     比"未初始化"更糟（会让菜单以为鼠标在某个位置）。
@@ -920,15 +920,15 @@ dimensions window::get_pixel_size() const {
     }
 
 #if defined(WAG_HAVE_SDL3)
-    // 【为什么用 SDL_GetWindowSizeInPixels 而不是 dip × dpi】
-    //   ① `dip × dpi` 是一个**推导值**，它与平台报的真值之间会有取整余量
+    // 【为什么用 SDL_GetWindowSizeInPixels 而不是 window_size × display_scale】
+    //   ① `window_size × display_scale` 是一个**推导值**，它与平台报的真值之间会有取整余量
     //      ⇒ 按它算居中的结果是**偏的**（这一条与"禁止用乘积互相推导"同源，
     //        见 window.hpp 头部）。
     //   ② 这个函数直接给"平台认为的绘制表面有多大"。
     //
     //   ⚠️ **而它到底是不是"物理像素"，取决于窗口是否启用了高像素密度**
     //      （`SDL_WINDOW_HIGH_PIXEL_DENSITY`）。实测记录：
-    //          引擎窗口上 dip = 像素 = 1920×1080，而 display_scale = 1.500
+    //          引擎窗口上 window_size = pixel = 1920×1080，而 display_scale = 1.500
     //      ⇒ 在**未启用**高像素密度时，两者按**约定**相等（绘制表面就是逻辑分辨率），
     //        所以"相等"不是函数出错。
     //      ⇒ 而本函数**只负责上报平台给的数**，不负责解释它的语义 ——
@@ -974,7 +974,7 @@ double window::get_display_scale() const {
 //      所以它每帧调一次的成本 = 三次读字段（几十纳秒级）。
 //
 //  【读的顺序无关紧要】但**必须在同一帧内读** —— 这正是本函数存在的第二个理由:
-//      分别调的时候，调用方可能在第 1 处读了 dip、在第 7 处读了 pixel，
+//      分别调的时候，调用方可能在第 1 处读了 window、在第 7 处读了 pixel，
 //      而窗口恰好在这两点之间变了 ⇒ **一帧内两个瞬间的尺寸**。
 //      合成一个值之后，"同一次读取"成为默认形态。
 // -----------------------------------------------------------------------------

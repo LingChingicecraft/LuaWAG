@@ -609,7 +609,7 @@ void renderer::reset_for_reload() noexcept {
 }
 
 void renderer::begin_frame(const space::transform& transform,
-                           const space::rect& viewport_dip,
+                           const space::rect& viewport,
                            const platform::window::frame_geometry& geom) {
  // 【本帧常量，只在这里写一次】顶点变换在收集时用，视口与矩阵在这里用。
     transform_ = transform;
@@ -628,23 +628,23 @@ void renderer::begin_frame(const space::transform& transform,
  // 它报的是 Windows 的 UI 缩放 —— 用它做任何换算都是错的。
     display_scale_ = geom.display_scale;
 #if defined(WAG_HAVE_SDL3)
- // 【可断言的不变量】本平台上"DIP 尺寸"与"像素尺寸"必须相等
+ // 【可断言的不变量】本平台上窗口尺寸与绘制表面像素必须相等
  // （尺寸 API 本来就给物理像素，实测过的）。若不等，说明有处自己用
- // DIP × dpi 推导了 —— 那正是坐标系链条里最贵的一次事故。
+ // window_size × display_scale 推导了 —— 那正是坐标系链条里最贵的一次事故。
     assert(geom.window.w == geom.pixel.w && geom.window.h == geom.pixel.h &&
-           "窗口 DIP 尺寸与像素尺寸不等 —— 本平台不该发生；"
-           "请检查是否有处自己用 DIP × dpi 推导（见坐标系链条 6.2/清单第 5 条）");
+           "窗口尺寸与绘制表面像素不等 —— 本平台不该发生；"
+           "请检查是否有处自己用 window_size × display_scale 推导（见坐标系链条 6.2/清单第 5 条）");
 
     if (!ctx_.is_valid()) {
         return;
     }
 
- // 【帧缓冲尺寸问平台要，不问 DIP】见坐标系链条：像素是根本量。
+ // 【帧缓冲尺寸问平台要，不自己推】见坐标系链条：像素是平台报的量。
     int fb_w = static_cast<int>(geom.pixel.w + 0.5);
     int fb_h = static_cast<int>(geom.pixel.h + 0.5);
     if (fb_w <= 0 || fb_h <= 0) {
  // 【退化帧】窗口被压到 0 像素（最小化/尺寸为 0）时，平台报的像素尺寸可能是 0。
- // 此时退回 DIP 尺寸只是"给一个能算的除数"，真正的防线是下面的 vw>0&&vh>0：
+ // 此时退回窗口尺寸只是"给一个能算的除数"，真正的防线是下面的 vw>0&&vh>0：
  // 矩阵不更新 ⇒ 沿用上一帧的好值，而不是写进一个除零产物。
         fb_w = static_cast<int>(geom.window.w + 0.5);
         fb_h = static_cast<int>(geom.window.h + 0.5);
@@ -665,7 +665,7 @@ void renderer::begin_frame(const space::transform& transform,
  // ---- 视口盒：逻辑 render 矩形 → 帧缓冲坐标（那一次 y 翻转就在这里）----
  // 【唯一来源】`space::framebuffer_box_for` —— 与 glViewport/glScissor/矩阵
  // 三个消费者共用同一个产物，所以没有第二个来源可漂移。
-    const space::rect win_render = viewport_dip;
+    const space::rect win_render = viewport;
     const space::framebuffer_box box =
         space::framebuffer_box_for(win_render, static_cast<double>(fb_w),
                                    static_cast<double>(fb_h));
@@ -682,7 +682,7 @@ void renderer::begin_frame(const space::transform& transform,
         assert(vx >= -slack && vy >= -slack && vx + vw <= fb_w + slack &&
                vy + vh <= fb_h + slack &&
                "视口矩形越出帧缓冲过多 —— 像是被某个推导算错了"
-               "（典型：拿 DIP × display_scale）。请查坐标系链条第 5 条。");
+               "（典型：拿 window_size × display_scale）。请查坐标系链条第 5 条。");
 #endif
     }
 
@@ -733,7 +733,7 @@ void renderer::begin_frame(const space::transform& transform,
  // 其余分量恒为 0（列主序 3×3，只有 x/y 两个输出维度参与）
     }
 #else
-    (void)viewport_dip;
+    (void)viewport;
     (void)geom;
 #endif
 

@@ -659,6 +659,7 @@ private:
     double windowed_w_ = 0.0;
     double windowed_h_ = 0.0;
     bool windowed_bordered_ = true;
+    bool windowed_maximized_ = false;
     bool has_windowed_geometry_ = false;
 };
 

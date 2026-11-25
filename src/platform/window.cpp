@@ -43,6 +43,8 @@
 
 #include <array>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iterator>
 #include <string>
 
@@ -376,6 +378,19 @@ bool window::set_fullscreen(fullscreen_mode mode) {
         return true;
     }
 
+    // 【测试专用故障注入】不属于公开行为；只用于回归“独占全屏失败 → 回退窗口”。
+    // 取值：exclusive / borderless / all。正常游戏不设置该环境变量。
+    if (const char* fail = std::getenv("WAG_TEST_FULLSCREEN_FAIL")) {
+        const bool want_exclusive =
+            std::strcmp(fail, "exclusive") == 0 || std::strcmp(fail, "all") == 0;
+        const bool want_borderless =
+            std::strcmp(fail, "borderless") == 0 || std::strcmp(fail, "all") == 0;
+        if ((mode == fullscreen_mode::exclusive && want_exclusive) ||
+            (mode == fullscreen_mode::borderless && want_borderless)) {
+            return false;
+        }
+    }
+
 #if defined(WAG_HAVE_SDL3)
     SDL_Window* win = as_window(native_handle_);
 
@@ -384,10 +399,20 @@ bool window::set_fullscreen(fullscreen_mode mode) {
         if (!SDL_SetWindowFullscreen(win, false)) {
             return false;
         }
+        // 退出全屏是异步的（尤其从最小化状态恢复时）。先等窗口真正回到
+        // 窗口化状态，再恢复尺寸/位置；否则平台可能用全屏尺寸覆盖我们。
+        SDL_SyncWindow(win);
         if (has_windowed_geometry_) {
+            // 从全屏/最小化恢复时窗口可能处于最大化状态；先还原，
+            // 否则 SDL_SetWindowSize 会被最大化状态覆盖。
+            SDL_RestoreWindow(win);
             SDL_SetWindowBordered(win, windowed_bordered_);
             SDL_SetWindowSize(win, clamp_size(windowed_w_), clamp_size(windowed_h_));
             SDL_SetWindowPosition(win, windowed_x_, windowed_y_);
+            if (windowed_maximized_) {
+                SDL_MaximizeWindow(win);
+            }
+            SDL_SyncWindow(win);
         }
         fullscreen_mode_ = fullscreen_mode::none;
         return true;
@@ -406,6 +431,7 @@ bool window::set_fullscreen(fullscreen_mode mode) {
         windowed_w_ = static_cast<double>(w);
         windowed_h_ = static_cast<double>(h);
         windowed_bordered_ = (SDL_GetWindowFlags(win) & SDL_WINDOW_BORDERLESS) == 0;
+        windowed_maximized_ = (SDL_GetWindowFlags(win) & SDL_WINDOW_MAXIMIZED) != 0;
         has_windowed_geometry_ = true;
     }
 

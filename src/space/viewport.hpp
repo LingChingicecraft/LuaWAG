@@ -22,6 +22,37 @@
 namespace wag::space {
 
 // -----------------------------------------------------------------------------
+//  fit_box —— 把源矩形按 letterbox / stretch 放进目标矩形
+//
+//  【唯一来源】呈现层（renderer present）与输入反算（output → target）共用
+//  本函数；不允许各写一份缩放算术。
+// -----------------------------------------------------------------------------
+struct fit_box {
+    double x = 0.0;
+    double y = 0.0;
+    double w = 0.0;
+    double h = 0.0;
+};
+
+[[nodiscard]] inline fit_box fit_into(double src_w, double src_h,
+                                      double dst_w, double dst_h,
+                                      bool stretch) noexcept {
+    if (!(src_w > 0.0) || !(src_h > 0.0) || !(dst_w > 0.0) ||
+        !(dst_h > 0.0)) {
+        return {};
+    }
+    if (stretch) {
+        return fit_box{0.0, 0.0, dst_w, dst_h};
+    }
+    const double sx = dst_w / src_w;
+    const double sy = dst_h / src_h;
+    const double s = (sx < sy) ? sx : sy;
+    const double w = src_w * s;
+    const double h = src_h * s;
+    return fit_box{(dst_w - w) * 0.5, (dst_h - h) * 0.5, w, h};
+}
+
+// -----------------------------------------------------------------------------
 //  fit_strategy —— 当 render 的宽高比与窗口不一致时怎么办
 //
 //  【为什么是字符串而不是枚举】

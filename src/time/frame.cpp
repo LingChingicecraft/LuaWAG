@@ -331,6 +331,7 @@ void frame_pipeline::run_one_frame(engine& eng) {
  // 【命令式的收口点】引擎在这里只做一次"申请"，不记住、不纠正、不吸附。
     eng.apply_pending_fullscreen();
     eng.apply_pending_window_size();
+    eng.apply_pending_render_state();
 
  // =========================================================================
  // perf_log：**逐帧一行**
@@ -550,38 +551,27 @@ void frame_pipeline::stage_frame_begin(engine& eng) {
         fs.geom.pixel_h = g.pixel.h;
         fs.geom.display_scale = g.display_scale;
         fs.window_size = space::rect{0.0, 0.0, fs.geom.window_w, fs.geom.window_h};
+        fs.render_size = space::rect{
+            0.0, 0.0, static_cast<double>(eng.render_width()),
+            static_cast<double>(eng.render_height())};
+        {
+            const space::fit_box fit = space::fit_into(
+                fs.render_size.w, fs.render_size.h, fs.geom.pixel_w,
+                fs.geom.pixel_h, eng.present_mode() == 1);
+            fs.present_box = space::rect{fit.x, fit.y, fit.w, fit.h};
+        }
         fs.display_scale = fs.geom.display_scale;
 
- // ---- 第 4 件的一部分：休眠判定 ----
- //
- // 【判定点就在这里，理由是具体的】
- // 在阶段 1 判定 ⇒ 下面那次 recompute() 里**那条除以窗口尺寸的除法
- // 根本不会执行**（或者执行了也没人用），比"算了之后检查 inf/NaN"
- // 干净。而且整帧行为一致。
- //
- // 【为什么用 !is_valid() 而不是 is_empty()】
- // `fs.window_size` 是 **space::rect**（它是从 dimensions 的两个分量
- // 构造出来的），而 `is_empty()` 是 **dimensions** 的成员 ——
- // 两者是不同的类型，把它们的方法名混用是一个真实的编译错误。
- //
- // 而语义上两者等价：
- // dimensions::is_empty() ⇒ w <= 0 || h <= 0
- // rect::is_valid() ⇒ w > 0 && h > 0
- // ⇒ 于是 `!is_valid()` 正是"窗口尺寸为零 ⇒ 休眠"。
- // （rect 的 w/h 不可能是负的 —— 它们由 dimensions 那两个 >= 0 的分量填入。）
-        fs.pipeline_asleep = !fs.window_size.is_valid();
+        // ---- 第 4 件的一部分：休眠判定 ----
+        // 逻辑管线是否休眠由**输出窗口**决定；内部 render target 始终存在。
+        fs.pipeline_asleep =
+            !fs.window_size.is_valid() || !fs.render_size.is_valid();
     }
 
- // ---- 第 4 件：算本帧变换 ----
- //
- // 【它是唯一的写入点】viewport 的变换只能由 recompute() 改，而 recompute
- // 只读 render 与传进来的窗口尺寸。于是"变换必须由 {render, 策略,
- // 窗口尺寸快照} 派生，不得单独赋值"这条实施约束在类型上成立。
- //
- // 【休眠时也算】因为窗口尺寸为 0 时 from_rects 会得到一个退化的 scale,
- // 把一切映到同一点 —— 这是一个**有限的**值，不会产生 inf/NaN。
- // 让它可以被算出来，比"算之前判断、算之后判断"少两处分支。
-    eng.viewport().recompute(fs.window_size);
+    // ---- 第 4 件：算本帧变换 ----
+    // 变换的映射域是**内部渲染目标**，不是输出窗口。
+    // 输出窗口只负责 present：target → output。
+    eng.viewport().recompute(fs.render_size);
 
  // ---- 第 5 件：拖拽状态快照（2026-11-15）----
  //
@@ -611,12 +601,11 @@ void frame_pipeline::stage_frame_begin(engine& eng) {
  // 钩子里读到"本帧的"值；而渲染器里的 `frame_pixel_` 要到**渲染阶段**才写。
  // 这里从**平台**（`window::get_pixel_size()`，物理像素的唯一来源）取一次。
  //
- // 【与窗口尺寸的关系】本平台窗口尺寸 = 绘制表面像素（当前未启用高像素密度）；这里取的是
- // **像素**那一侧 —— 所以就算将来 DPI ≠ 1，这个值仍然是帧缓冲的真实尺寸。
+ // 【与窗口尺寸的关系】这是**内部渲染目标**的像素尺寸，不是输出窗口。
+ // 输出像素由 window 的 pixel size 单独读取；get_output_size() 给它。
     {
-        const auto px = eng.window().get_pixel_size();
-        eng.set_frame_pixel_size(static_cast<int>(px.w + 0.5),
-                                 static_cast<int>(px.h + 0.5));
+        eng.set_frame_pixel_size(static_cast<int>(fs.render_size.w + 0.5),
+                                 static_cast<int>(fs.render_size.h + 0.5));
     }
 
  // ---- 第 8 件：控制通道（，2026-11-17）----
@@ -880,7 +869,10 @@ void frame_pipeline::stage_input_sample(engine& eng) {
  // transform。它在阶段 1 的 recompute 里定稿 ⇒ 阶段 4 读到的就是本帧值。
  // ⚠️ 最小化帧的 transform 可能退化（m00/m11 == 0）；是否换算由 input
  // 内部判断（退化时保留上次 DIP，不除零）。
-    eng.input_system().sample(eng.viewport().get_transform());
+    eng.input_system().sample(
+        eng.viewport().get_transform(), fs.present_box,
+        static_cast<int>(fs.render_size.w + 0.5),
+        static_cast<int>(fs.render_size.h + 0.5));
 
  // ---- on_event：每帧一次批量（2026-11-16，；）----
  //

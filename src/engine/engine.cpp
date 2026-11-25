@@ -618,6 +618,81 @@ void engine::apply_pending_fullscreen() noexcept {
     release_pause(pause_source::fullscreen);
 }
 
+// =============================================================================
+// 渲染尺寸 / 呈现状态
+// =============================================================================
+
+void engine::request_render_size(int w, int h) noexcept {
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    if (!has_pending_render_state_) {
+        pending_render_w_ = render_w_;
+        pending_render_h_ = render_h_;
+        pending_present_mode_ = present_mode_;
+        pending_present_filter_ = present_filter_;
+    }
+    has_pending_render_state_ = true;
+    pending_render_w_ = w;
+    pending_render_h_ = h;
+}
+
+int engine::render_width() const noexcept { return render_w_; }
+int engine::render_height() const noexcept { return render_h_; }
+
+void engine::request_present_mode(int mode) noexcept {
+    if (mode != 0 && mode != 1) {
+        return;
+    }
+    if (!has_pending_render_state_) {
+        pending_render_w_ = render_w_;
+        pending_render_h_ = render_h_;
+        pending_present_mode_ = present_mode_;
+        pending_present_filter_ = present_filter_;
+    }
+    has_pending_render_state_ = true;
+    pending_present_mode_ = mode;
+}
+
+int engine::present_mode() const noexcept { return present_mode_; }
+
+void engine::request_present_filter(int filter) noexcept {
+    if (filter != 0 && filter != 1) {
+        return;
+    }
+    if (!has_pending_render_state_) {
+        pending_render_w_ = render_w_;
+        pending_render_h_ = render_h_;
+        pending_present_mode_ = present_mode_;
+        pending_present_filter_ = present_filter_;
+    }
+    has_pending_render_state_ = true;
+    pending_present_filter_ = filter;
+}
+
+int engine::present_filter() const noexcept { return present_filter_; }
+
+void engine::apply_pending_render_state() noexcept {
+    if (!has_pending_render_state_) {
+        return;
+    }
+    has_pending_render_state_ = false;
+
+    if (pending_render_w_ > 0 && pending_render_h_ > 0) {
+        render_w_ = pending_render_w_;
+        render_h_ = pending_render_h_;
+        impl_->rend.set_scene_size(render_w_, render_h_);
+    }
+    present_mode_ = pending_present_mode_;
+    present_filter_ = pending_present_filter_;
+    impl_->rend.set_present_mode(
+        present_mode_ == 1 ? draw::present_mode::stretch
+                           : draw::present_mode::letterbox);
+    impl_->rend.set_present_filter(
+        present_filter_ == 0 ? draw::present_filter::nearest
+                             : draw::present_filter::linear);
+}
+
 bool engine::has_requested_window_size() const noexcept {
     return has_applied_window_size_;
 }

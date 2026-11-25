@@ -253,7 +253,18 @@ void input::feed(const platform::input_event& ev) {
 //  sample —— 阶段 4：冻结快照
 // =============================================================================
 
-void input::sample(const space::transform& t) {
+void input::sample(const space::transform& t,
+                    const space::rect& target_box,
+                    int target_w, int target_h) {
+    const auto to_target = [&](double& x, double& y) {
+        if (target_box.w > 0.0 && target_box.h > 0.0 && target_w > 0 &&
+            target_h > 0) {
+            x = (x - target_box.l) * static_cast<double>(target_w) /
+                target_box.w;
+            y = (y - target_box.b) * static_cast<double>(target_h) /
+                target_box.h;
+        }
+    };
     // ---- ① P 占帧（I2）：先算 press，再用它否决 release ----
     //   顺序不能反：若先清 press_acc 再算 release，就会把“同帧点按”算成 Release。
     press_frame_ = press_acc_;
@@ -289,8 +300,11 @@ void input::sample(const space::transform& t) {
     //   退化变换（窗口最小化，m00/m11 == 0）**不换算**：保留上一次的值。
     //   除零会得到 NaN/Inf，而那会顺着输入流进游戏逻辑 —— 比“旧值”危险得多。
     if (t.m00 != 0.0 && t.m11 != 0.0) {
-        mouse_dip_x_ = t.unapply_x(static_cast<double>(mouse_pos_x_));
-        mouse_dip_y_ = t.unapply_y(static_cast<double>(mouse_pos_y_));
+        double mx = static_cast<double>(mouse_pos_x_);
+        double my = static_cast<double>(mouse_pos_y_);
+        to_target(mx, my);
+        mouse_dip_x_ = t.unapply_x(mx);
+        mouse_dip_y_ = t.unapply_y(my);
     }
 
     // ---- ⑤ 滚轮：冻结本帧增量，累加器清零 ----
@@ -325,8 +339,11 @@ void input::sample(const space::transform& t) {
             if (!is_mouse) {
                 continue;
             }
-            ev.x = static_cast<float>(t.unapply_x(static_cast<double>(ev.x)));
-            ev.y = static_cast<float>(t.unapply_y(static_cast<double>(ev.y)));
+            double mx = static_cast<double>(ev.x);
+            double my = static_cast<double>(ev.y);
+            to_target(mx, my);
+            ev.x = static_cast<float>(t.unapply_x(mx));
+            ev.y = static_cast<float>(t.unapply_y(my));
         }
     }
 }

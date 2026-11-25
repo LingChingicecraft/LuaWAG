@@ -58,6 +58,18 @@ enum class render_stage : std::uint8_t;
 
 namespace wag::draw {
 
+/// 呈现策略：保持比例 / 拉满输出。
+enum class present_mode : std::uint8_t {
+    letterbox = 0,
+    stretch = 1,
+};
+
+/// 呈现滤波。
+enum class present_filter : std::uint8_t {
+    nearest = 0,
+    linear = 1,
+};
+
 // -----------------------------------------------------------------------------
 // vertex —— 一个顶点
 //
@@ -506,6 +518,16 @@ public:
     /// 【调用点】阶段 12：end_frame 与快照之后、window::present 之前。
     /// 【当前实现】letterbox + linear；渲染分辨率/比例 API 随后接入。
     void present_frame();
+
+    /// 设置内部场景目标尺寸（在下一帧 begin_frame 生效/重建）。
+    void set_scene_size(int w, int h) noexcept;
+
+    /// 设置呈现策略与滤波（在下一帧 present 生效）。
+    void set_present_mode(present_mode mode) noexcept;
+    void set_present_filter(present_filter filter) noexcept;
+
+    [[nodiscard]] int scene_width() const noexcept { return scene_w_; }
+    [[nodiscard]] int scene_height() const noexcept { return scene_h_; }
 
  /// 设定当前收集阶段（绘制项的"阶段"排序键；帧结构在阶段 7/9 边界调用）。
  ///
@@ -1426,8 +1448,12 @@ private:
     int fb_w_ = 0;
     int fb_h_ = 0;
 
-    // 内部场景目标（永远 RTT；默认尺寸随后由 render_size 接入）。
+    // 内部场景目标（永远 RTT；默认 1920×1080）。
     render_target scene_target_{};
+    int scene_w_ = 1920;
+    int scene_h_ = 1080;
+    present_mode present_mode_ = present_mode::letterbox;
+    present_filter present_filter_ = present_filter::linear;
 
     // 当前输出/后缓冲尺寸（来自窗口 pixel size）。
     int output_w_ = 0;

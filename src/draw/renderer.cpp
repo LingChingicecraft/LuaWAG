@@ -655,10 +655,12 @@ void renderer::begin_frame(const space::transform& transform,
     fb_h_ = fb_h;
 
  // 【内部场景目标】0.2.0 起永远先画到这里，再由 present_frame 送到输出。
- // 本步先保持 scene target 与输出同尺寸；render_size 的独立尺寸随后接入。
+ // 目标尺寸由 render_size 决定；默认 1920×1080。
     output_w_ = fb_w;
     output_h_ = fb_h;
-    ensure_render_target_(scene_target_, fb_w, fb_h, false);
+    const int target_w = (scene_w_ > 0) ? scene_w_ : fb_w;
+    const int target_h = (scene_h_ > 0) ? scene_h_ : fb_h;
+    ensure_render_target_(scene_target_, target_w, target_h, false);
     bind_render_target_(scene_target_);
     fb_w_ = scene_target_.w;
     fb_h_ = scene_target_.h;
@@ -868,6 +870,21 @@ void main() {
 #endif
 }
 
+void renderer::set_scene_size(int w, int h) noexcept {
+    if (w > 0 && h > 0) {
+        scene_w_ = w;
+        scene_h_ = h;
+    }
+}
+
+void renderer::set_present_mode(present_mode mode) noexcept {
+    present_mode_ = mode;
+}
+
+void renderer::set_present_filter(present_filter filter) noexcept {
+    present_filter_ = filter;
+}
+
 void renderer::present_frame() {
 #if defined(WAG_HAVE_SDL3)
     if (!ctx_.is_valid() || scene_target_.fbo == 0 || output_w_ <= 0 ||
@@ -879,16 +896,16 @@ void renderer::present_frame() {
     }
     ensure_present_resources_();
 
-    // 目标画布 -> 输出：默认 letterbox（保持比例、居中）。
-    const double sw = static_cast<double>(output_w_) / static_cast<double>(scene_target_.w);
-    const double sh = static_cast<double>(output_h_) / static_cast<double>(scene_target_.h);
-    const double s = (sw < sh) ? sw : sh;
-    int dw = static_cast<int>(scene_target_.w * s + 0.5);
-    int dh = static_cast<int>(scene_target_.h * s + 0.5);
-    if (dw <= 0) { dw = 1; }
-    if (dh <= 0) { dh = 1; }
-    const int dx = (output_w_ - dw) / 2;
-    const int dy = (output_h_ - dh) / 2;
+    const space::fit_box fit = space::fit_into(
+        static_cast<double>(scene_target_.w),
+        static_cast<double>(scene_target_.h),
+        static_cast<double>(output_w_),
+        static_cast<double>(output_h_),
+        present_mode_ == present_mode::stretch);
+    const int dx = static_cast<int>(fit.x + 0.5);
+    const int dy = static_cast<int>(fit.y + 0.5);
+    const int dw = static_cast<int>(fit.w + 0.5);
+    const int dh = static_cast<int>(fit.h + 0.5);
 
     gl_api::bind_framebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_SCISSOR_TEST);
@@ -901,9 +918,14 @@ void renderer::present_frame() {
     glViewport(dx, dy, dw, dh);
     gl_api::use_program(present_prog_);
     gl_api::active_texture(0x84C0);
+    const GLenum filter = (present_filter_ == present_filter::nearest)
+                              ? GL_NEAREST
+                              : GL_LINEAR;
     glBindTexture(GL_TEXTURE_2D, scene_target_.tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                    static_cast<GLint>(filter));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                    static_cast<GLint>(filter));
     if (present_u_tex_ >= 0) {
         gl_api::uniform_1i(present_u_tex_, 0);
     }

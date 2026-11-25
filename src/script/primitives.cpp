@@ -634,6 +634,83 @@ int l_space_get_display_work_area(lua_State* L) {
     return 1;
 }
 
+/// wag.space.set_render_size(w, h)
+int l_space_set_render_size(lua_State* L) {
+    const double w = checked_double(L, 1, "set_render_size 的宽");
+    const double h = checked_double(L, 2, "set_render_size 的高");
+    if (!(w > 0.0) || !(h > 0.0) || w > 16384.0 || h > 16384.0) {
+        wag::error_value e;
+        e.cls = wag::error_class::boundary_validation;
+        e.where = "set_render_size 的宽高";
+        e.got = "非正或超过 16384";
+        e.want = "0 < w,h <= 16384";
+        wag::fail_boundary(e);
+    }
+    engine_of(L).request_render_size(static_cast<int>(w + 0.5),
+                                     static_cast<int>(h + 0.5));
+    return 0;
+}
+
+/// wag.space.get_render_size() -> w, h（已应用的内部渲染尺寸）
+int l_space_get_render_size(lua_State* L) {
+    lua_pushinteger(L, engine_of(L).render_width());
+    lua_pushinteger(L, engine_of(L).render_height());
+    return 2;
+}
+
+/// wag.space.set_present_mode("letterbox" | "stretch")
+int l_space_set_present_mode(lua_State* L) {
+    const char* text = lua_tostring(L, 1);
+    int mode = -1;
+    if (text != nullptr && std::strcmp(text, "letterbox") == 0) {
+        mode = 0;
+    } else if (text != nullptr && std::strcmp(text, "stretch") == 0) {
+        mode = 1;
+    }
+    if (mode < 0) {
+        wag::error_value e;
+        e.cls = wag::error_class::api_misuse;
+        e.where = "set_present_mode 的参数";
+        e.got = text == nullptr ? luaL_typename(L, 1) : text;
+        e.want = "\"letterbox\" / \"stretch\"";
+        wag::fail_boundary(e);
+    }
+    engine_of(L).request_present_mode(mode);
+    return 0;
+}
+
+/// wag.space.set_present_filter("nearest" | "linear")
+int l_space_set_present_filter(lua_State* L) {
+    const char* text = lua_tostring(L, 1);
+    int filter = -1;
+    if (text != nullptr && std::strcmp(text, "nearest") == 0) {
+        filter = 0;
+    } else if (text != nullptr && std::strcmp(text, "linear") == 0) {
+        filter = 1;
+    }
+    if (filter < 0) {
+        wag::error_value e;
+        e.cls = wag::error_class::api_misuse;
+        e.where = "set_present_filter 的参数";
+        e.got = text == nullptr ? luaL_typename(L, 1) : text;
+        e.want = "\"nearest\" / \"linear\"";
+        wag::fail_boundary(e);
+    }
+    engine_of(L).request_present_filter(filter);
+    return 0;
+}
+
+/// wag.space.get_present_mode() / get_present_filter()
+int l_space_get_present_mode(lua_State* L) {
+    lua_pushstring(L, engine_of(L).present_mode() == 1 ? "stretch" : "letterbox");
+    return 1;
+}
+
+int l_space_get_present_filter(lua_State* L) {
+    lua_pushstring(L, engine_of(L).present_filter() == 0 ? "nearest" : "linear");
+    return 1;
+}
+
 // =============================================================================
 // wag.argv / wag.control —— 控制通道的三条原语（，2026-11-17）
 //
@@ -4345,6 +4422,18 @@ void register_primitives(state& st, wag::engine& eng) {
     lua_setfield(L, -2, "get_display_bounds");
     lua_pushcclosure(L, (l_space_get_display_work_area), 0);
     lua_setfield(L, -2, "get_display_work_area");
+    lua_pushcclosure(L, (l_space_set_render_size), 0);
+    lua_setfield(L, -2, "set_render_size");
+    lua_pushcclosure(L, (l_space_get_render_size), 0);
+    lua_setfield(L, -2, "get_render_size");
+    lua_pushcclosure(L, (l_space_set_present_mode), 0);
+    lua_setfield(L, -2, "set_present_mode");
+    lua_pushcclosure(L, (l_space_get_present_mode), 0);
+    lua_setfield(L, -2, "get_present_mode");
+    lua_pushcclosure(L, (l_space_set_present_filter), 0);
+    lua_setfield(L, -2, "set_present_filter");
+    lua_pushcclosure(L, (l_space_get_present_filter), 0);
+    lua_setfield(L, -2, "get_present_filter");
     lua_setfield(L, -2, "space");
 
  // ---- wag.argv（控制通道：启动参数原样交给脚本）----

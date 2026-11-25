@@ -516,6 +516,25 @@ public:
     [[nodiscard]] bool has_pending_fullscreen() const noexcept;
 
     // -------------------------------------------------------------------------
+    //  渲染尺寸 / 呈现状态（命令式；帧末应用）
+    // -------------------------------------------------------------------------
+
+    /// 请求内部渲染尺寸（像素，不是 DIP）。默认 1920×1080。
+    void request_render_size(int w, int h) noexcept;
+
+    /// 最近一次已应用的内部渲染尺寸。
+    [[nodiscard]] int render_width() const noexcept;
+    [[nodiscard]] int render_height() const noexcept;
+
+    /// 呈现策略：0 = letterbox，1 = stretch。
+    void request_present_mode(int mode) noexcept;
+    [[nodiscard]] int present_mode() const noexcept;
+
+    /// 呈现滤波：0 = nearest，1 = linear。
+    void request_present_filter(int filter) noexcept;
+    [[nodiscard]] int present_filter() const noexcept;
+
+    // -------------------------------------------------------------------------
     //  部件的访问（显式传递的落点）
     // -------------------------------------------------------------------------
 
@@ -774,6 +793,24 @@ private:
 
     /// 应用本帧的全屏请求；失败回退窗口模式并记 L2。
     void apply_pending_fullscreen() noexcept;
+
+    // -------------------------------------------------------------------------
+    //  渲染尺寸 / 呈现状态
+    // -------------------------------------------------------------------------
+
+    int render_w_ = 1920;
+    int render_h_ = 1080;
+
+    bool has_pending_render_state_ = false;
+    int pending_render_w_ = 0;
+    int pending_render_h_ = 0;
+    int pending_present_mode_ = 0;
+    int pending_present_filter_ = 1;
+
+    int present_mode_ = 0;   // 0 = letterbox, 1 = stretch
+    int present_filter_ = 1; // 0 = nearest, 1 = linear
+
+    void apply_pending_render_state() noexcept;
 
     /// 把本帧请求的窗口尺寸应用到平台。
     ///

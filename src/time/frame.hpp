@@ -173,6 +173,12 @@ struct frame_state {
  /// 映射一次，看起来像"晚一帧才调整好"。这是**已接受**的行为，不修。
     space::rect window_size{};
 
+    /// 本帧内部渲染目标尺寸（像素；由引擎 render_size 请求决定）。
+    space::rect render_size{};
+
+    /// 内部渲染目标在输出上的呈现矩形（窗口像素；letterbox/stretch）。
+    space::rect present_box{};
+
  /// 本帧的几何：**三个量一次读**（窗口尺寸 / 绘制表面像素 / 显示比例）。
  ///
  /// 【为什么整包存在这里，而不只是窗口尺寸】

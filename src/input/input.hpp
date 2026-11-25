@@ -89,7 +89,13 @@ public:
  ///
  /// 【退化变换】t.m00/t.m11 为 0（窗口最小化）时**不换算**，
  /// 保留上一次的逻辑坐标 —— 不能除零。
-    void sample(const space::transform& t);
+    /// @param target_box 内部渲染目标在输出上的矩形（窗口像素；letterbox/stretch）
+    /// @param target_w 内部渲染目标宽（像素）
+    /// @param target_h 内部渲染目标高（像素）
+    /// 传空矩形时表示不做输出→目标映射（旧行为）。
+    void sample(const space::transform& t,
+                const space::rect& target_box = space::rect{},
+                int target_w = 0, int target_h = 0);
 
  // -------------------------------------------------------------------------
  // 查询（阶段 5/6/7 的钩子读；O(1)）

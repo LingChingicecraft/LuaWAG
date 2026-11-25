@@ -23,7 +23,7 @@
 --        down(action)   -> boolean
 --        press(action)  -> boolean
 --        release(action)-> boolean
---        mouse_pos()    -> x, y   （逻辑坐标 DIP）
+--        mouse_pos()    -> x, y   （逻辑坐标）
 --        wheel()        -> dx, dy （本帧增量）
 --    默认源是 "device"（用 wag.input + 本模块的绑定表）。
 --    将来回放源实现同一张表即可替换，游戏代码无感。
@@ -333,7 +333,7 @@ function M.release(action)
     return source.release(action)
 end
 
---- 鼠标位置：**逻辑坐标（DIP）**。
+--- 鼠标位置：**逻辑坐标**。
 function M.mouse_pos()
     return source.mouse_pos()
 end

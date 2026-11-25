@@ -1101,6 +1101,7 @@ void frame_pipeline::stage_present(engine& eng) {
  // 探针采样的是 staged 快照，而快照在阶段 10 拍摄。若探针在拍摄**之前**画，
  // 快照就会包含探针自己的输出 ⇒ 下一帧再采样它 ⇒ **正反馈**，几帧内烂成噪声。
  // ⇒ 放到快照之后：快照永远是"干净的场景"，探针只是最后覆盖上去的一层。
+    eng.renderer().present_frame();
     eng.renderer().draw_shader_probe();
     eng.window().present();
 }

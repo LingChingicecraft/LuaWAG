@@ -654,6 +654,15 @@ void renderer::begin_frame(const space::transform& transform,
     fb_w_ = fb_w;
     fb_h_ = fb_h;
 
+ // 【内部场景目标】0.2.0 起永远先画到这里，再由 present_frame 送到输出。
+ // 本步先保持 scene target 与输出同尺寸；render_size 的独立尺寸随后接入。
+    output_w_ = fb_w;
+    output_h_ = fb_h;
+    ensure_render_target_(scene_target_, fb_w, fb_h, false);
+    bind_render_target_(scene_target_);
+    fb_w_ = scene_target_.w;
+    fb_h_ = scene_target_.h;
+
  // ---- 第一段清屏：整屏信箱色 ----
  // 【为什么先关 scissor】上一帧把它开着（限制场景绘制范围）⇒ 不关就清不到整屏。
     glDisable(GL_SCISSOR_TEST);
@@ -769,6 +778,144 @@ void renderer::end_frame() {
     flush_pending_destroy_tex_();
     flush_retired_shaders_();
 }
+
+#if defined(WAG_HAVE_SDL3)
+namespace {
+gl_api::uint_t compile_present_shader(gl_api::enum_t type, const char* src,
+                                     const char* label) {
+    const gl_api::uint_t sh = gl_api::create_shader(type);
+    if (sh == 0) {
+        fail_internal(std::string(label) + "：gl_api::create_shader 返回 0");
+    }
+    gl_api::shader_source(sh, 1, &src, nullptr);
+    gl_api::compile_shader(sh);
+    GLint ok = 0;
+    gl_api::get_shader_iv(sh, GL_COMPILE_STATUS, &ok);
+    if (ok == GL_FALSE) {
+        GLint len = 0;
+        gl_api::get_shader_iv(sh, GL_INFO_LOG_LENGTH, &len);
+        std::string log(static_cast<std::size_t>(len > 1 ? len : 1), '\0');
+        gl_api::get_shader_info_log(sh, len, nullptr, log.data());
+        gl_api::delete_shader(sh);
+        fail_internal(std::string(label) + " 编译失败：" + log);
+    }
+    return sh;
+}
+} // namespace
+#endif
+
+void renderer::ensure_present_resources_() {
+#if defined(WAG_HAVE_SDL3)
+    if (present_ready_) {
+        return;
+    }
+    const char* vs_src = R"(#version 330 core
+layout(location = 0) in vec2 a_corner;
+out vec2 v_uv;
+void main() {
+    v_uv = a_corner;
+    gl_Position = vec4(a_corner * 2.0 - 1.0, 0.0, 1.0);
+}
+)";
+    const char* fs_src = R"(#version 330 core
+in vec2 v_uv;
+uniform sampler2D u_tex;
+out vec4 frag;
+void main() {
+    frag = texture(u_tex, v_uv);
+}
+)";
+    const gl_api::uint_t vs = compile_present_shader(
+        gl_api::vertex_shader, vs_src, "present vertex");
+    const gl_api::uint_t fs = compile_present_shader(
+        gl_api::fragment_shader, fs_src, "present fragment");
+    present_prog_ = gl_api::create_program();
+    if (present_prog_ == 0) {
+        gl_api::delete_shader(vs);
+        gl_api::delete_shader(fs);
+        fail_internal("present：gl_api::create_program 返回 0");
+    }
+    gl_api::attach_shader(present_prog_, vs);
+    gl_api::attach_shader(present_prog_, fs);
+    gl_api::link_program(present_prog_);
+    gl_api::delete_shader(vs);
+    gl_api::delete_shader(fs);
+    GLint ok = 0;
+    gl_api::get_program_iv(present_prog_, GL_LINK_STATUS, &ok);
+    if (ok == GL_FALSE) {
+        GLint len = 0;
+        gl_api::get_program_iv(present_prog_, GL_INFO_LOG_LENGTH, &len);
+        std::string log(static_cast<std::size_t>(len > 1 ? len : 1), '\0');
+        gl_api::get_program_info_log(present_prog_, len, nullptr, log.data());
+        gl_api::delete_program(present_prog_);
+        present_prog_ = 0;
+        fail_internal("present 链接失败：" + log);
+    }
+    present_u_tex_ = gl_api::get_uniform_location(present_prog_, "u_tex");
+    gl_api::gen_vertex_arrays(1, &present_vao_);
+    gl_api::gen_buffers(1, &present_vbo_);
+    gl_api::bind_vertex_array(present_vao_);
+    gl_api::bind_buffer(GL_ARRAY_BUFFER, present_vbo_);
+    const float quad[8] = {0.0f, 0.0f, 1.0f, 0.0f,
+                           0.0f, 1.0f, 1.0f, 1.0f};
+    gl_api::buffer_data(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(quad)), quad,
+                 GL_STATIC_DRAW);
+    gl_api::vertex_attrib_pointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    gl_api::enable_vertex_attrib_array(0);
+    gl_api::bind_vertex_array(0);
+    gl_api::bind_buffer(GL_ARRAY_BUFFER, 0);
+    present_ready_ = true;
+#endif
+}
+
+void renderer::present_frame() {
+#if defined(WAG_HAVE_SDL3)
+    if (!ctx_.is_valid() || scene_target_.fbo == 0 || output_w_ <= 0 ||
+        output_h_ <= 0) {
+        return;
+    }
+    if (target_bound_) {
+        unbind_render_target_();
+    }
+    ensure_present_resources_();
+
+    // 目标画布 -> 输出：默认 letterbox（保持比例、居中）。
+    const double sw = static_cast<double>(output_w_) / static_cast<double>(scene_target_.w);
+    const double sh = static_cast<double>(output_h_) / static_cast<double>(scene_target_.h);
+    const double s = (sw < sh) ? sw : sh;
+    int dw = static_cast<int>(scene_target_.w * s + 0.5);
+    int dh = static_cast<int>(scene_target_.h * s + 0.5);
+    if (dw <= 0) { dw = 1; }
+    if (dh <= 0) { dh = 1; }
+    const int dx = (output_w_ - dw) / 2;
+    const int dy = (output_h_ - dh) / 2;
+
+    gl_api::bind_framebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_BLEND);
+    glViewport(0, 0, output_w_, output_h_);
+    glClearColor(kMailboxColor[0], kMailboxColor[1], kMailboxColor[2],
+                 kMailboxColor[3]);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glViewport(dx, dy, dw, dh);
+    gl_api::use_program(present_prog_);
+    gl_api::active_texture(0x84C0);
+    glBindTexture(GL_TEXTURE_2D, scene_target_.tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    if (present_u_tex_ >= 0) {
+        gl_api::uniform_1i(present_u_tex_, 0);
+    }
+    gl_api::bind_vertex_array(present_vao_);
+    gl_api::draw_arrays(GL_TRIANGLE_STRIP, 0, 4);
+    gl_api::bind_vertex_array(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    gl_api::use_program(0);
+    glViewport(0, 0, output_w_, output_h_);
+#endif
+}
+
 
 // =============================================================================
 // 【探针 · 2026-10-18】外置 GLSL 视觉探针
@@ -2044,7 +2191,7 @@ void renderer::capture_staged_snapshot() {
     while (gl_api::get_error() != gl_api::no_error) {
     }
     glDisable(GL_SCISSOR_TEST);
-    gl_api::bind_framebuffer(gl_api::read_framebuffer, 0);
+    gl_api::bind_framebuffer(gl_api::read_framebuffer, scene_target_.fbo);
     gl_api::bind_framebuffer(gl_api::draw_framebuffer, staged_fbo_);
     gl_api::blit_framebuffer(0, 0, fb_w_, fb_h_, 0, 0, fb_w_, fb_h_,
                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -3378,7 +3525,7 @@ void renderer::bind_render_target(std::uint64_t fbo) {
  // 渲染状态是被脚本的绘制意图所依赖的。
  //
  // ---- 待补 · 接线 ----
- // glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)fbo);
+ // gl_api::bind_framebuffer(GL_FRAMEBUFFER, (GLuint)fbo);
  // // 并重设 glViewport 为该渲染目标的尺寸
     (void)fbo;
 }
@@ -3387,7 +3534,7 @@ void renderer::unbind_render_target() {
  // 【正当调用点】on_render_end —— 它在所有绘制之后、呈现之前。
  //
  // ---- 待补 · 接线 ----
- // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+ // gl_api::bind_framebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void renderer::adopt_staged_snapshot_as_frozen() {
@@ -3419,7 +3566,7 @@ void renderer::draw_frozen_snapshot() {
  // 脚本可以直接覆盖它（它只是 layer 最小的一笔，不是"背景层"特权）。
  //
  // ---- 做法：提交一笔"覆盖整个帧缓冲"的四边形 ----
- // 【为什么不直接 glDrawArrays】帧结构是"收集 → 排序 → 发射"，
+ // 【为什么不直接 gl_api::draw_arrays】帧结构是"收集 → 排序 → 发射"，
  // 在这里直接发 GL 会绕过排序，于是它可能盖在已经被收集的绘制之上。
  // 提交成一笔绘制项 ⇒ 它自然走同一条管线（批状态、混合、发射时机）。
  //

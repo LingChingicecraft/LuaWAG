@@ -501,6 +501,12 @@ public:
  /// （休眠跳过整条渲染管线 ⇒ 缓冲本来就是空的）。
     void end_frame();
 
+    /// 把内部场景目标呈现到默认输出。
+    ///
+    /// 【调用点】阶段 12：end_frame 与快照之后、window::present 之前。
+    /// 【当前实现】letterbox + linear；渲染分辨率/比例 API 随后接入。
+    void present_frame();
+
  /// 设定当前收集阶段（绘制项的"阶段"排序键；帧结构在阶段 7/9 边界调用）。
  ///
  /// 【值域】0=scene 1=ext（与 wag::render_stage 的阶段语义一一对应；
@@ -1420,6 +1426,20 @@ private:
     int fb_w_ = 0;
     int fb_h_ = 0;
 
+    // 内部场景目标（永远 RTT；默认尺寸随后由 render_size 接入）。
+    render_target scene_target_{};
+
+    // 当前输出/后缓冲尺寸（来自窗口 pixel size）。
+    int output_w_ = 0;
+    int output_h_ = 0;
+
+    // present pass 资源。
+    gl_api::uint_t present_prog_ = 0;
+    gl_api::uint_t present_vao_ = 0;
+    gl_api::uint_t present_vbo_ = 0;
+    gl_api::int_t present_u_tex_ = -1;
+    bool present_ready_ = false;
+
  // -------------------------------------------------------------------------
  // 图片族（资源系统的种子 —— 2026 先以最小形态住在渲染器，
  // 资源批落地时整体迁往资源模块；句柄/代数/覆盖规则从第一天就按定案）
@@ -1611,6 +1631,8 @@ private:
 
  /// 渲染目标：确保存在（尺寸/格式变了就重建）
     void ensure_render_target_(render_target& t, int w, int h, bool hdr);
+    /// present pass：建 shader / VAO / VBO（一次）。
+    void ensure_present_resources_();
  /// 灯光填充率：**唯一来源**（警告、快照、Lua stats 共用同一分母）
     [[nodiscard]] double light_fill_ratio_() const noexcept;
  /// 渲染目标：销毁（幂等）

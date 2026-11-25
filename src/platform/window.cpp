@@ -58,7 +58,7 @@ namespace wag::platform {
 // 把契约里的 double（DIP）收成 SDL3 要的 int。超范围时钳到边界。
 namespace {
 
-[[maybe_unused]] int to_pixels(double v) noexcept {
+[[maybe_unused]] int clamp_size(double v) noexcept {
     constexpr double kMax = 1000000.0;
     if (!(v > 0.0)) {
         return 0;
@@ -273,7 +273,7 @@ window::~window() {
     destroy();
 }
 
-bool window::create(double dip_w, double dip_h, const char* title) {
+bool window::create(double w, double h, const char* title) {
     if (native_handle_ != nullptr) {
         log::warn("platform", "窗口已创建，重复的 create() 被忽略");
         return false;
@@ -289,8 +289,8 @@ bool window::create(double dip_w, double dip_h, const char* title) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     native_handle_ = SDL_CreateWindow(title,
-                                      to_pixels(dip_w),
-                                      to_pixels(dip_h),
+                                      clamp_size(w),
+                                      clamp_size(h),
                                       SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (native_handle_ == nullptr) {
         log::warn("platform", "平台窗口创建失败");
@@ -313,8 +313,8 @@ bool window::create(double dip_w, double dip_h, const char* title) {
     log::record("platform", "窗口已创建");
     return true;
 #else
-    (void)dip_w;
-    (void)dip_h;
+    (void)w;
+    (void)h;
     (void)title;
     log::record("platform", "窗口创建流程（未接 SDL3）");
     return false;
@@ -327,8 +327,8 @@ bool window::set_size(double w, double h) {
     }
 
 #if defined(WAG_HAVE_SDL3)
-    const int want_w = to_pixels(w);
-    const int want_h = to_pixels(h);
+    const int want_w = clamp_size(w);
+    const int want_h = clamp_size(h);
 
     if (!SDL_SetWindowSize(as_window(native_handle_), want_w, want_h)) {
         return false;
@@ -341,7 +341,7 @@ bool window::set_size(double w, double h) {
     //   ⇒ 所以这里立刻读一次，与请求值比较；不等就如实报 false，由调用方记 L2。
     //
     //   【为什么这里立刻读是安全的（不会自己骗自己）】
-    //     因为我们不缓存：get_dip_size / get_pixel_size 每次都重新向平台取。
+    //     因为我们不缓存：get_window_size / get_pixel_size 每次都重新向平台取。
     //     若平台是"延迟采纳"，那这里读到的就是旧值 ⇒ 大概率与请求不等 ⇒
     //     报一条 L2（提示"你的请求没被满足"）—— 这比"静默地看它一眼就当成
     //     成功"要诚实。而"到底延迟多久"由引擎在下一帧读到真实尺寸后自然纠正。
@@ -805,7 +805,7 @@ void window::pump_events() {
         note_event(pending_events_, focused_, input_sink_, e);
     }
 #endif
-    // DPI 变化不需要设位：get_dpi_scale() 每次调用都会重新取。
+    // DPI 变化不需要设位：get_display_scale() 每次调用都会重新取。
 }
 
 void window::wait_events_or_timeout(int timeout_ms) {
@@ -895,10 +895,10 @@ void window::set_input_sink(input_sink* sink) noexcept {
 //  两个查询
 // =============================================================================
 
-dip_size window::get_dip_size() const {
+dimensions window::get_window_size() const {
     if (native_handle_ == nullptr) {
         // 零尺寸是一个**合法**的值（帧结构据此判定休眠），因此不需要特判。
-        return dip_size{0.0, 0.0};
+        return dimensions{0.0, 0.0};
     }
 
 #if defined(WAG_HAVE_SDL3)
@@ -906,17 +906,17 @@ dip_size window::get_dip_size() const {
     int h = 0;
     // SDL_GetWindowSize 返回 bool（失败时 w/h 保持原值）。
     if (!SDL_GetWindowSize(as_window(native_handle_), &w, &h)) {
-        return dip_size{0.0, 0.0};
+        return dimensions{0.0, 0.0};
     }
-    return dip_size{static_cast<double>(w), static_cast<double>(h)};
+    return dimensions{static_cast<double>(w), static_cast<double>(h)};
 #else
-    return dip_size{0.0, 0.0};
+    return dimensions{0.0, 0.0};
 #endif
 }
 
-dip_size window::get_pixel_size() const {
+dimensions window::get_pixel_size() const {
     if (native_handle_ == nullptr) {
-        return dip_size{0.0, 0.0};
+        return dimensions{0.0, 0.0};
     }
 
 #if defined(WAG_HAVE_SDL3)
@@ -928,7 +928,7 @@ dip_size window::get_pixel_size() const {
     //
     //   ⚠️ **而它到底是不是"物理像素"，取决于窗口是否启用了高像素密度**
     //      （`SDL_WINDOW_HIGH_PIXEL_DENSITY`）。实测记录：
-    //          引擎窗口上 dip = 像素 = 1920×1080，而 dpi_scale = 1.500
+    //          引擎窗口上 dip = 像素 = 1920×1080，而 display_scale = 1.500
     //      ⇒ 在**未启用**高像素密度时，两者按**约定**相等（绘制表面就是逻辑分辨率），
     //        所以"相等"不是函数出错。
     //      ⇒ 而本函数**只负责上报平台给的数**，不负责解释它的语义 ——
@@ -936,15 +936,15 @@ dip_size window::get_pixel_size() const {
     int w = 0;
     int h = 0;
     if (!SDL_GetWindowSizeInPixels(as_window(native_handle_), &w, &h)) {
-        return dip_size{0.0, 0.0};
+        return dimensions{0.0, 0.0};
     }
-    return dip_size{static_cast<double>(w), static_cast<double>(h)};
+    return dimensions{static_cast<double>(w), static_cast<double>(h)};
 #else
-    return dip_size{0.0, 0.0};
+    return dimensions{0.0, 0.0};
 #endif
 }
 
-double window::get_dpi_scale() const {
+double window::get_display_scale() const {
     if (native_handle_ == nullptr) {
         // 1.0 是"不支持 DPI 缩放"的按定义取值。
         return 1.0;
@@ -980,9 +980,9 @@ double window::get_dpi_scale() const {
 // -----------------------------------------------------------------------------
 window::frame_geometry window::get_frame_geometry() const {
     frame_geometry g;
-    g.dip = get_dip_size();
+    g.window = get_window_size();
     g.pixel = get_pixel_size();
-    g.scale = get_dpi_scale();
+    g.display_scale = get_display_scale();
     return g;
 }
 

@@ -93,7 +93,7 @@ viewport::viewport()
  // 在那之前 transform_ 是恒等变换 —— 而它在阶段 1 之前不会被任何绘制使用。
 }
 
-void viewport::recompute(const rect& window_dip) noexcept {
+void viewport::recompute(const rect& window_size) noexcept {
  // 唯一的写入点。transform_ 只能在这里被改。
  //
  // =========================================================================
@@ -115,12 +115,12 @@ void viewport::recompute(const rect& window_dip) noexcept {
  // ⇒ 而窗口里 dst 之外的部分从未被写过 ⇒ 黑边
  // stretch：dst = 整个窗口 ⇒ 两个方向各自缩放 ⇒ 铺满且变形
  // =========================================================================
-    rect dst = window_dip;
+    rect dst = window_size;
 
-    if (strategy_ == fit_strategy::letterbox && window_dip.w > 0.0 && window_dip.h > 0.0 &&
+    if (strategy_ == fit_strategy::letterbox && window_size.w > 0.0 && window_size.h > 0.0 &&
         render_.is_valid()) {
  // 等比缩放系数：取"装得下"的那一个（取小 ⇒ contain）。
-        const double s_fit = std::min(window_dip.w / render_.w, window_dip.h / render_.h);
+        const double s_fit = std::min(window_size.w / render_.w, window_size.h / render_.h);
 
         dst.w = render_.w * s_fit;
         dst.h = render_.h * s_fit;
@@ -130,8 +130,8 @@ void viewport::recompute(const rect& window_dip) noexcept {
  // `b` 在这个域里是“距顶”的距离。这里的“居中”是“上下边距相等”，
  // 这个条件在两种方向下都成立，所以这行代码本身不用改；
  // 但不要据此以为窗口坐标是 +y 向上。
-        dst.l = (window_dip.w - dst.w) * 0.5;
-        dst.b = (window_dip.h - dst.h) * 0.5;
+        dst.l = (window_size.w - dst.w) * 0.5;
+        dst.b = (window_size.h - dst.h) * 0.5;
     }
  // stretch：dst 保持 = 整个窗口。
 

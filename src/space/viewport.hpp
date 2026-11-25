@@ -168,7 +168,7 @@ public:
 
     /// 设置窗口尺寸并**重算**变换。
     ///
-    /// @param window_dip  窗口的逻辑尺寸，单位 DIP
+    /// @param window_size  窗口的逻辑尺寸，单位 DIP
     ///
     /// 【它在阶段 1 被调用一次】于是"本帧一个变换"成为显式的。
     ///
@@ -187,7 +187,7 @@ public:
     ///   这**不是**需要处理的错误 —— 窗口为 0 时帧结构会休眠整条渲染管线,
     ///   这个变换根本不会被使用（见 wag/time/frame.hpp）。
     ///   这样安排的好处是：**不会产生 inf/NaN，也不会有人去检查它。**
-    void recompute(const rect& window_dip) noexcept;
+    void recompute(const rect& window_size) noexcept;
 
     // -------------------------------------------------------------------------
     //  读取

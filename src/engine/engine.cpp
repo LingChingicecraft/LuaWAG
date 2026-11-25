@@ -165,7 +165,7 @@ bool SDLCALL expose_watch(void* userdata, SDL_Event* event) {
  // 【帧缓冲多大 —— 在回调那一刻读】
  // 拖拽期间窗口尺寸在平台上已经是新值，读数跟上即可；
  // 读到 0（罕见的最小化瞬间）就没有可画的东西，直接放弃这一次重画。
-    const platform::dip_size px = win.get_pixel_size();
+    const platform::dimensions px = win.get_pixel_size();
     const int fw = static_cast<int>(px.w + 0.5);
     const int fh = static_cast<int>(px.h + 0.5);
     if (fw <= 0 || fh <= 0) {

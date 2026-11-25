@@ -79,7 +79,7 @@ namespace {
 //
 // 而**前向声明只够声明指针与引用，不够调用成员函数**。
 // 本文件里到处是这种调用：
-// eng.window().get_dip_size()
+// eng.window().get_window_size()
 // eng.window().consume_events()
 
 // eng.script()（作为实参传给 script::call_hook，那个签名也需要完整类型）
@@ -277,7 +277,7 @@ void frame_pipeline::run_one_frame(engine& eng) {
  // 之所以写成 #if 而不是宏：它要先花一次平台调用问窗口像素尺寸，
  // 而"关掉时连这次调用都不发生"必须让读到这里的人看得见。
         {
-            const platform::dip_size fb = eng.window().get_pixel_size();
+            const platform::dimensions fb = eng.window().get_pixel_size();
             ::wag::devtools::on_before_present(fb.w, fb.h);
         }
 #endif
@@ -543,13 +543,13 @@ void frame_pipeline::stage_frame_begin(engine& eng) {
  // 换显示器都会改），副本会变脏 ⇒ 画面错而不崩。所以**每帧取一次**，
  // 而不是"取一次一直用"。
         const platform::window::frame_geometry g = eng.window().get_frame_geometry();
-        fs.geom.dip_w = g.dip.w;
-        fs.geom.dip_h = g.dip.h;
+        fs.geom.window_w = g.window.w;
+        fs.geom.window_h = g.window.h;
         fs.geom.pixel_w = g.pixel.w;
         fs.geom.pixel_h = g.pixel.h;
-        fs.geom.scale = g.scale;
-        fs.window_dip = space::rect{0.0, 0.0, fs.geom.dip_w, fs.geom.dip_h};
-        fs.dpi_scale = fs.geom.scale;
+        fs.geom.display_scale = g.display_scale;
+        fs.window_size = space::rect{0.0, 0.0, fs.geom.window_w, fs.geom.window_h};
+        fs.display_scale = fs.geom.display_scale;
 
  // ---- 第 4 件的一部分：休眠判定 ----
  //
@@ -559,16 +559,16 @@ void frame_pipeline::stage_frame_begin(engine& eng) {
  // 干净。而且整帧行为一致。
  //
  // 【为什么用 !is_valid() 而不是 is_empty()】
- // `fs.window_dip` 是 **space::rect**（它是从 dip_size 的两个分量
- // 构造出来的），而 `is_empty()` 是 **dip_size** 的成员 ——
+ // `fs.window_size` 是 **space::rect**（它是从 dimensions 的两个分量
+ // 构造出来的），而 `is_empty()` 是 **dimensions** 的成员 ——
  // 两者是不同的类型，把它们的方法名混用是一个真实的编译错误。
  //
  // 而语义上两者等价：
- // dip_size::is_empty() ⇒ w <= 0 || h <= 0
+ // dimensions::is_empty() ⇒ w <= 0 || h <= 0
  // rect::is_valid() ⇒ w > 0 && h > 0
  // ⇒ 于是 `!is_valid()` 正是"窗口尺寸为零 ⇒ 休眠"。
- // （rect 的 w/h 不可能是负的 —— 它们由 dip_size 那两个 >= 0 的分量填入。）
-        fs.pipeline_asleep = !fs.window_dip.is_valid();
+ // （rect 的 w/h 不可能是负的 —— 它们由 dimensions 那两个 >= 0 的分量填入。）
+        fs.pipeline_asleep = !fs.window_size.is_valid();
     }
 
  // ---- 第 4 件：算本帧变换 ----
@@ -580,7 +580,7 @@ void frame_pipeline::stage_frame_begin(engine& eng) {
  // 【休眠时也算】因为窗口尺寸为 0 时 from_rects 会得到一个退化的 scale,
  // 把一切映到同一点 —— 这是一个**有限的**值，不会产生 inf/NaN。
  // 让它可以被算出来，比"算之前判断、算之后判断"少两处分支。
-    eng.viewport().recompute(fs.window_dip);
+    eng.viewport().recompute(fs.window_size);
 
  // ---- 第 5 件：拖拽状态快照（2026-11-15）----
  //
@@ -977,13 +977,13 @@ void frame_pipeline::stage_render_begin(engine& eng) {
  // 为什么快照是扁平的、而不是直接存那个类型，见 `frame_state::geom` 的说明
  // （内核的帧状态不该依赖平台实现）。**装配只在这一个地方做。**
  //
- // ⚠️ 第二个参数以前是 `fs.window_dip`，**本轮删掉了**：
- // 窗口尺寸现在就在 `geom.dip` 里 ⇒ **同一个量不留两个来源**
+ // ⚠️ 第二个参数以前是 `fs.window_size`，**本轮删掉了**：
+ // 窗口尺寸现在就在 `geom.window` 里 ⇒ **同一个量不留两个来源**
  // （两个来源会漂移，而那正是实测事实 15 的形态）。
     platform::window::frame_geometry geom{};
-    geom.dip = platform::dip_size{fs.geom.dip_w, fs.geom.dip_h};
-    geom.pixel = platform::dip_size{fs.geom.pixel_w, fs.geom.pixel_h};
-    geom.scale = fs.geom.scale;
+    geom.window = platform::dimensions{fs.geom.window_w, fs.geom.window_h};
+    geom.pixel = platform::dimensions{fs.geom.pixel_w, fs.geom.pixel_h};
+    geom.display_scale = fs.geom.display_scale;
     eng.renderer().set_render_space(eng.viewport().get_render());
     eng.renderer().begin_frame(eng.viewport().get_transform(),
                                eng.viewport().get_viewport(), geom);

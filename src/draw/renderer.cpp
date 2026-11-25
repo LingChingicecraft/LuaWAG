@@ -624,14 +624,14 @@ void renderer::begin_frame(const space::transform& transform,
     new_over_commits_ = false;
     band_mask_active_ = false;
 
- // 【dpi_scale_ 只作诊断】渲染几何一次都不读它（见文件头部第 91 行那段）。
+ // 【display_scale_ 只作诊断】渲染几何一次都不读它（见文件头部第 91 行那段）。
  // 它报的是 Windows 的 UI 缩放 —— 用它做任何换算都是错的。
-    dpi_scale_ = geom.scale;
+    display_scale_ = geom.display_scale;
 #if defined(WAG_HAVE_SDL3)
  // 【可断言的不变量】本平台上"DIP 尺寸"与"像素尺寸"必须相等
  // （尺寸 API 本来就给物理像素，实测过的）。若不等，说明有处自己用
  // DIP × dpi 推导了 —— 那正是坐标系链条里最贵的一次事故。
-    assert(geom.dip.w == geom.pixel.w && geom.dip.h == geom.pixel.h &&
+    assert(geom.window.w == geom.pixel.w && geom.window.h == geom.pixel.h &&
            "窗口 DIP 尺寸与像素尺寸不等 —— 本平台不该发生；"
            "请检查是否有处自己用 DIP × dpi 推导（见坐标系链条 6.2/清单第 5 条）");
 
@@ -646,8 +646,8 @@ void renderer::begin_frame(const space::transform& transform,
  // 【退化帧】窗口被压到 0 像素（最小化/尺寸为 0）时，平台报的像素尺寸可能是 0。
  // 此时退回 DIP 尺寸只是"给一个能算的除数"，真正的防线是下面的 vw>0&&vh>0：
  // 矩阵不更新 ⇒ 沿用上一帧的好值，而不是写进一个除零产物。
-        fb_w = static_cast<int>(geom.dip.w + 0.5);
-        fb_h = static_cast<int>(geom.dip.h + 0.5);
+        fb_w = static_cast<int>(geom.window.w + 0.5);
+        fb_h = static_cast<int>(geom.window.h + 0.5);
     }
 
  // 【记住帧缓冲尺寸】快照画布要用它（阶段 10）。
@@ -682,7 +682,7 @@ void renderer::begin_frame(const space::transform& transform,
         assert(vx >= -slack && vy >= -slack && vx + vw <= fb_w + slack &&
                vy + vh <= fb_h + slack &&
                "视口矩形越出帧缓冲过多 —— 像是被某个推导算错了"
-               "（典型：拿 DIP × dpi_scale）。请查坐标系链条第 5 条。");
+               "（典型：拿 DIP × display_scale）。请查坐标系链条第 5 条。");
 #endif
     }
 

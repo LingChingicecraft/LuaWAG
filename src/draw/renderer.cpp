@@ -662,8 +662,13 @@ void renderer::begin_frame(const space::transform& transform,
     const int target_h = (scene_h_ > 0) ? scene_h_ : fb_h;
     ensure_render_target_(scene_target_, target_w, target_h, false);
     bind_render_target_(scene_target_);
-    fb_w_ = scene_target_.w;
-    fb_h_ = scene_target_.h;
+    // 从这里开始，帧缓冲尺寸是**内部目标**，不是输出窗口。
+    // 后续 viewport / scissor / framebuffer_box / pixel_to_ndc 全部用它；
+    // 输出尺寸只属于 present（output_w_ / output_h_）。
+    fb_w = scene_target_.w;
+    fb_h = scene_target_.h;
+    fb_w_ = fb_w;
+    fb_h_ = fb_h;
 
  // ---- 第一段清屏：整屏信箱色 ----
  // 【为什么先关 scissor】上一帧把它开着（限制场景绘制范围）⇒ 不关就清不到整屏。

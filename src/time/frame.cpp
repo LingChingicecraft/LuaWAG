@@ -1048,17 +1048,9 @@ void frame_pipeline::stage_ext_render_and_finish(engine& eng) {
 void frame_pipeline::stage_snapshot(engine& eng) {
  // 【B 方案（2026-10-22）：快照改为**显式请求**，不再每帧自动拍】
  // · 脚本调用 wag.draw.capture_snapshot() 置位；
- // · 阶段 10 消费一次（拍完清零）；
- // · 不请求 ⇒ 不拍 ⇒ 正常帧没有那 8.3 MB/帧的全屏 blit。
- //
- // 【为什么仍然在阶段 10】拍的是"本帧的完整渲染结果"（渲染之后）。
- // 【休眠帧不会走到这里】门在 run_one_frame 里；否则最小化会把快照清空。
-    if (!eng.renderer().snapshot_requested()) {
-        return;
-    }
-    eng.renderer().capture_staged_snapshot();
-    eng.renderer().clear_snapshot_request();
-    fs.staged_snapshot_valid = true;
+ // · 实际捕获移到阶段 12 的 present 之后（拍最终输出，而不是内部画布）；
+ // · 本阶段保留为阶段序号与休眠门，不在这里读目标/输出。
+    (void)eng;
 }
 
 // =============================================================================
@@ -1094,6 +1086,10 @@ void frame_pipeline::stage_present(engine& eng) {
  // 快照就会包含探针自己的输出 ⇒ 下一帧再采样它 ⇒ **正反馈**，几帧内烂成噪声。
  // ⇒ 放到快照之后：快照永远是"干净的场景"，探针只是最后覆盖上去的一层。
     eng.renderer().present_frame();
+    if (eng.renderer().snapshot_requested()) {
+        eng.renderer().capture_staged_snapshot();
+        eng.renderer().clear_snapshot_request();
+    }
     eng.renderer().draw_shader_probe();
     eng.window().present();
 }

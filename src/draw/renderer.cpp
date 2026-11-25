@@ -2202,21 +2202,21 @@ void renderer::ensure_staged_snapshot_(int fb_w, int fb_h) {
 
 void renderer::capture_staged_snapshot() {
 #if defined(WAG_HAVE_SDL3)
-    if (fb_w_ <= 0 || fb_h_ <= 0 || !ctx_.is_valid()) {
+    if (output_w_ <= 0 || output_h_ <= 0 || !ctx_.is_valid()) {
         return;
     }
-    ensure_staged_snapshot_(fb_w_, fb_h_);
+    ensure_staged_snapshot_(output_w_, output_h_);
 
- // ---- 默认帧缓冲 → staged 快照：1:1 blit（同坐标系，无需 y 交换）----
- // 【关 scissor】blit 受 scissor 影响；而阶段 7 之后 scissor 一直开着
- // （限制的是场景的绘制范围）⇒ 捕获整屏必须显式关掉，捕完恢复。
+ // ---- 默认帧缓冲（最终输出）→ staged 快照：1:1 blit ----
+ // 【为什么是输出而不是内部目标】快照语义是“玩家最终看到的画面”，
+ // 包含 present 的 letterbox / 缩放结果。
     while (gl_api::get_error() != gl_api::no_error) {
     }
     glDisable(GL_SCISSOR_TEST);
-    gl_api::bind_framebuffer(gl_api::read_framebuffer, scene_target_.fbo);
+    gl_api::bind_framebuffer(gl_api::read_framebuffer, 0);
     gl_api::bind_framebuffer(gl_api::draw_framebuffer, staged_fbo_);
-    gl_api::blit_framebuffer(0, 0, fb_w_, fb_h_, 0, 0, fb_w_, fb_h_,
-                             GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    gl_api::blit_framebuffer(0, 0, output_w_, output_h_, 0, 0, output_w_,
+                             output_h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     gl_api::bind_framebuffer(gl_api::read_framebuffer, 0);
     gl_api::bind_framebuffer(gl_api::draw_framebuffer, 0);
     glEnable(GL_SCISSOR_TEST);

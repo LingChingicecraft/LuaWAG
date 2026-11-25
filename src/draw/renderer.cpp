@@ -901,6 +901,8 @@ void renderer::present_frame() {
     }
     ensure_present_resources_();
 
+    const GLboolean blend_was = glIsEnabled(GL_BLEND);
+
     const space::fit_box fit = space::fit_into(
         static_cast<double>(scene_target_.w),
         static_cast<double>(scene_target_.h),
@@ -938,9 +940,15 @@ void renderer::present_frame() {
     gl_api::bind_vertex_array(present_vao_);
     gl_api::draw_arrays(GL_TRIANGLE_STRIP, 0, 4);
     gl_api::bind_vertex_array(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    gl_api::bind_texture(GL_TEXTURE_2D, 0);
     gl_api::use_program(0);
     glViewport(0, 0, output_w_, output_h_);
+    // present 自己关过混合；恢复给下一帧的字形/半透明内容。
+    if (blend_was == GL_TRUE) {
+        glEnable(GL_BLEND);
+    } else {
+        glDisable(GL_BLEND);
+    }
 #endif
 }
 

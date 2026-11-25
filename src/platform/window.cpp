@@ -43,8 +43,6 @@
 
 #include <array>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <iterator>
 #include <string>
 
@@ -376,19 +374,6 @@ bool window::set_fullscreen(fullscreen_mode mode) {
     }
     if (mode == fullscreen_mode_) {
         return true;
-    }
-
-    // 【测试专用故障注入】不属于公开行为；只用于回归“独占全屏失败 → 回退窗口”。
-    // 取值：exclusive / borderless / all。正常游戏不设置该环境变量。
-    if (const char* fail = std::getenv("WAG_TEST_FULLSCREEN_FAIL")) {
-        const bool want_exclusive =
-            std::strcmp(fail, "exclusive") == 0 || std::strcmp(fail, "all") == 0;
-        const bool want_borderless =
-            std::strcmp(fail, "borderless") == 0 || std::strcmp(fail, "all") == 0;
-        if ((mode == fullscreen_mode::exclusive && want_exclusive) ||
-            (mode == fullscreen_mode::borderless && want_borderless)) {
-            return false;
-        }
     }
 
 #if defined(WAG_HAVE_SDL3)

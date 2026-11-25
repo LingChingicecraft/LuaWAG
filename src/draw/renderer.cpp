@@ -906,6 +906,7 @@ void renderer::present_frame() {
     const int dy = static_cast<int>(fit.y + 0.5);
     const int dw = static_cast<int>(fit.w + 0.5);
     const int dh = static_cast<int>(fit.h + 0.5);
+    present_box_ = space::rect{fit.x, fit.y, fit.w, fit.h};
 
     gl_api::bind_framebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_SCISSOR_TEST);
@@ -2713,12 +2714,21 @@ std::uint64_t renderer::load_image_from_snapshot(const char* name,
         fail_boundary(e);
     }
 
- // ---- ② 逻辑矩形 → 快照像素（用本帧变换；坑 1 的 y 翻转在 blit 里做）----
+ // ---- ② 逻辑矩形 → 快照像素 ----
+ // 先由 viewport 变换得到**内部目标**坐标，再按最近一次 present 的
+ // target→output 矩形缩放。快照现在是最终输出，不能直接用目标 fb_h_ 翻转。
  // (x, y) = 矩形中心（与图片中心锚点同一惯例）；边缘按"最近整数像素"取整。
-    const double cx = transform_.apply_x(x, y);
-    const double cy = transform_.apply_y(x, y);
-    const double hw = std::fabs(transform_.m00) * w * 0.5;
-    const double hh = std::fabs(transform_.m11) * h * 0.5;
+    const double target_w = static_cast<double>(scene_target_.w);
+    const double target_h = static_cast<double>(scene_target_.h);
+    const bool has_box = present_box_.is_valid();
+    const double box_x = has_box ? present_box_.l : 0.0;
+    const double box_y = has_box ? present_box_.b : 0.0;
+    const double scale_x = has_box ? present_box_.w / target_w : 1.0;
+    const double scale_y = has_box ? present_box_.h / target_h : 1.0;
+    const double cx = box_x + transform_.apply_x(x, y) * scale_x;
+    const double cy = box_y + transform_.apply_y(x, y) * scale_y;
+    const double hw = std::fabs(transform_.m00) * w * 0.5 * scale_x;
+    const double hh = std::fabs(transform_.m11) * h * 0.5 * scale_y;
 
  // 【先在 double 域判界，再 llround】
  // 有限输入乘上变换仍可能溢出成 Inf；而 llround(Inf/NaN) 是域错误。
@@ -2751,8 +2761,8 @@ std::uint64_t renderer::load_image_from_snapshot(const char* name,
     const long long x1 = std::llround(right_d);
     const long long wy_top = std::llround(top_d);
     const long long wy_bot = std::llround(bot_d);
-    const long long src_y0 = static_cast<long long>(fb_h_) - wy_bot; // 帧缓冲距底
-    const long long src_y1 = static_cast<long long>(fb_h_) - wy_top;
+    const long long src_y0 = static_cast<long long>(staged_h_) - wy_bot; // 输出距底
+    const long long src_y1 = static_cast<long long>(staged_h_) - wy_top;
 
  // 【取整后仍要防"零宽/零高"】亚像素矩形可能取整到同一条边。
     if (x1 <= x0 || src_y1 <= src_y0) {

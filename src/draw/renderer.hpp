@@ -1458,6 +1458,9 @@ private:
     present_mode present_mode_ = present_mode::letterbox;
     present_filter present_filter_ = present_filter::linear;
 
+    /// 最近一次 present 的目标矩形（输出像素，左上原点）。
+    space::rect present_box_{};
+
     // 当前输出/后缓冲尺寸（来自窗口 pixel size）。
     int output_w_ = 0;
     int output_h_ = 0;

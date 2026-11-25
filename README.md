@@ -12,6 +12,9 @@ LuaWAG does not try to decide what the world should be like for the developer. G
 
 It is suitable for games whose rules are defined by the author—from text adventures, platformers and management simulations to bullet-hell shooters—and for people who want to use the engine itself as creative material.
 
+> **Read this before adapting an architecture from another engine.**  
+> LuaWAG deliberately uses a different execution model around frame lines, pause and state-mutation authority. If you are coming from any of these engines—including but not limited to Unity, Unreal, Godot, Love2D, and LuaSTG—read [WARNING.md](WARNING.md) first: it lists the concepts that must not be mapped one-to-one.
+
 ## Key Features
 
 - **No constants are preset at the game-world layer.**  
@@ -252,6 +255,9 @@ LuaWAG 是一款使用 Lua 编写游戏逻辑的Windows-First跨平台通用轻�
 LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维度、空间、物理、镜头、玩法规则，都不由引擎预设；引擎负责帧循环、窗口、输入、音频、渲染原语和脚本边界，游戏逻辑则完全交给 Lua。
 
 它适合从文字冒险、平台动作、模拟经营到弹幕射击这类“规则由作者定义”的游戏，也适合想把引擎本身当作创作材料的人。
+
+> **在把其他引擎的架构套进来之前，先读这个。**  
+> LuaWAG 在帧线、暂停和状态变更权上有意采用了不同的执行模型。如果你来自包括但不限于 Unity、Unreal、Godot、Love2D 或 LuaSTG，请先读 [WARNING.md](WARNING.md)：那里列出了不能直接一一对应的概念。
 
 ## 主要功能与特色
 

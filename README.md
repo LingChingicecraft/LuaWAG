@@ -123,7 +123,7 @@ The first build compiles everything; after that Ninja rebuilds only changed file
 ### 4. Output
 
 ```text
-build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
+build/Release/bin/LuaWAG-Luminosa-ver0.2.0/LuaWAG.exe
 ```
 
 After the build, `runtime/Luminosa/` is copied next to the executable, so that directory can be launched directly.
@@ -133,7 +133,7 @@ This build is an **empty engine**: `runtime/Luminosa/` currently contains only t
 Actual content lives in the Release package (the splash screen and SeedGame sample) or in the repository's `Projects/` directory. See `Projects/README.md` for the folder-as-cartridge layout.
 
 ```bash
-./build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
+./build/Release/bin/LuaWAG-Luminosa-ver0.2.0/LuaWAG.exe
 ```
 
 ### Troubleshooting
@@ -367,7 +367,7 @@ cmake --build build/Release
 ### 4. 产物
 
 ```text
-build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
+build/Release/bin/LuaWAG-Luminosa-ver0.2.0/LuaWAG.exe
 ```
 
 构建完成后，`runtime/Luminosa/` 会自动复制到 exe 旁边，所以这个目录可以直接启动。
@@ -377,7 +377,7 @@ build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
 实际内容在 Release 包（启动画面 + SeedGame 示例）或仓库根目录的 `Projects/` 文件夹里。卡带式目录的用法见 `Projects/README.md`。
 
 ```bash
-./build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
+./build/Release/bin/LuaWAG-Luminosa-ver0.2.0/LuaWAG.exe
 ```
 
 ### 常见问题

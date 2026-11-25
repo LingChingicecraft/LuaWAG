@@ -5,6 +5,118 @@
 
 ---
 
+## 0.2.0 — 2026-11-25（待发布）
+
+### 新增
+
+- **全屏模式**
+
+  ```lua
+  wag.space.set_fullscreen("none" | "borderless" | "exclusive")
+  wag.space.get_fullscreen()
+  ```
+
+  - `borderless`：覆盖当前显示器完整边界的无边框全屏
+  - `exclusive`：使用当前显示器原生模式的独占全屏
+  - 进入全屏前保存窗口位置、客户区尺寸、边框和最大化状态；退出时恢复
+  - 切换期间按住 `pause_source::fullscreen`
+
+- **内部渲染目标**
+
+  ```lua
+  wag.space.set_render_size(w, h)
+  wag.space.get_render_size()
+  wag.space.get_frame_size()    -- 内部渲染目标尺寸
+  wag.space.get_output_size()   -- 输出 / 后缓冲尺寸
+  ```
+
+  默认内部渲染目标为 `1920×1080`，不再自动跟随窗口或全屏输出。
+  所有场景先画到内部目标，再通过 present 输出。
+
+- **呈现控制**
+
+  ```lua
+  wag.space.set_present_mode("letterbox" | "stretch")
+  wag.space.set_present_filter("nearest" | "linear")
+  wag.space.get_present_mode()
+  wag.space.get_present_filter()
+  ```
+
+  默认 `letterbox` + `linear`。
+
+- **显示器信息**
+
+  ```lua
+  wag.space.get_display_bounds()
+  wag.space.get_display_work_area()
+  ```
+
+- **输入映射**
+
+  鼠标坐标按：
+
+  ```text
+  输出 → 内部渲染目标 → 逻辑坐标
+  ```
+
+  反算；全屏和 `render_size` 改变后输入位置仍对应画面。
+
+- **快照**
+
+  `wag.draw.capture_snapshot()` 改为在 present 之后捕获最终输出，而不是内部画布。
+
+### 兼容性变化
+
+- `get_frame_size()` 的语义从“输出 / 窗口像素尺寸”改为“内部渲染目标尺寸”。
+  需要输出尺寸时使用新增的 `get_output_size()`。
+- `get_viewport()` 返回的 viewport 矩形改为内部渲染目标坐标，不再是输出窗口坐标。
+- 游戏应继续用逻辑坐标（`render`）做布局；不要用 `get_frame_size()` 当窗口尺寸。
+- 自定义光照 shader 如需 `self_only` band mask，必须使用新增的 `u_band_space` 采样；
+  `u_light_space` 仍是光照/遮蔽图覆盖空间。
+
+### 修复
+
+- 修复全屏时视口仍按输出尺寸计算导致的整体漂移。
+- 修复 present 关闭 `GL_BLEND` 后未恢复，导致字体和半透明内容变成白块。
+- 修复快照改为最终输出后，`load_from_snapshot` 仍按内部目标尺寸取图的问题。
+- 修复全屏中最小化再恢复后退出全屏尺寸错误。
+- 修复重复进入全屏时仍使用第一次保存的窗口状态。
+- 修复 band mask 在自定义光照空间下错误使用 light space 采样。
+
+### 多显示器
+
+**多显示器未在真实硬件上实测。**
+
+按当前实现：
+
+- 窗口不在显示器边界上时，预期行为与单显示器一致。
+- 全屏请求失败会返回 `false`，引擎记录 L2 并回退窗口模式，不会因此主动终止进程。
+- 跨显示器选择、显示器热插拔、显示器移除后恢复到可见位置、混合 DPI 均未验证。
+- 显示器被移除或重新排列后，保存的位置可能落在不可见区域；当前不做窗口位置夹取，也不承诺崩溃后的显示状态恢复。
+
+因此多显示器目前是“未实测”，不是“已验证支持”。
+
+### 已知限制
+
+- `exclusive` 只使用当前显示器原生模式，不做显示模式枚举或选择。
+- 不提供 vsync API。
+- 不做整数倍缩放。
+- 不承诺崩溃后持久化显示状态恢复。
+- 示例项目里原先使用的上下箭头字形在字体中缺失；示例文案已改用中文“上箭头/下箭头”，字体本身未补字。
+
+### 发行包
+
+仍只包含：
+
+```text
+Luminosa/Project   启动画面
+Luminosa/SeedGame  弹幕 ACT 示例
+Luminosa/Lumi
+Luminosa/WagLib
+```
+
+---
+
 ## 0.1.2 — 2026-11-25
 
 ### 文档与内部收口

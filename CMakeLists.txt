@@ -31,7 +31,7 @@ cmake_minimum_required(VERSION 3.28)
 # -----------------------------------------------------------------------------
 
 project(LuaWAG
-    VERSION 0.1.2
+    VERSION 0.2.0
     DESCRIPTION "LuaWAG 引擎（内核阶段）"
     LANGUAGES CXX)          # 只要 C++：本项目没有 C 源文件
 

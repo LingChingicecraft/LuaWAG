@@ -326,6 +326,13 @@ bool window::set_size(double w, double h) {
         return false;
     }
 
+    // 全屏期间不改变当前输出；只更新“退出全屏后要恢复的窗口尺寸”。
+    if (fullscreen_mode_ != fullscreen_mode::none) {
+        windowed_w_ = w;
+        windowed_h_ = h;
+        return true;
+    }
+
 #if defined(WAG_HAVE_SDL3)
     const int want_w = clamp_size(w);
     const int want_h = clamp_size(h);
@@ -359,6 +366,194 @@ bool window::set_size(double w, double h) {
     (void)h;
     return false;
 #endif
+}
+
+bool window::set_fullscreen(fullscreen_mode mode) {
+    if (native_handle_ == nullptr) {
+        return false;
+    }
+    if (mode == fullscreen_mode_) {
+        return true;
+    }
+
+#if defined(WAG_HAVE_SDL3)
+    SDL_Window* win = as_window(native_handle_);
+
+    if (mode == fullscreen_mode::none) {
+        SDL_SetWindowFullscreenMode(win, nullptr);
+        if (!SDL_SetWindowFullscreen(win, false)) {
+            return false;
+        }
+        if (has_windowed_geometry_) {
+            SDL_SetWindowBordered(win, windowed_bordered_);
+            SDL_SetWindowSize(win, clamp_size(windowed_w_), clamp_size(windowed_h_));
+            SDL_SetWindowPosition(win, windowed_x_, windowed_y_);
+        }
+        fullscreen_mode_ = fullscreen_mode::none;
+        return true;
+    }
+
+    // 第一次进入全屏时保存窗口化状态。
+    if (fullscreen_mode_ == fullscreen_mode::none && !has_windowed_geometry_) {
+        int x = 0;
+        int y = 0;
+        int w = 0;
+        int h = 0;
+        SDL_GetWindowPosition(win, &x, &y);
+        SDL_GetWindowSize(win, &w, &h);
+        windowed_x_ = x;
+        windowed_y_ = y;
+        windowed_w_ = static_cast<double>(w);
+        windowed_h_ = static_cast<double>(h);
+        windowed_bordered_ = (SDL_GetWindowFlags(win) & SDL_WINDOW_BORDERLESS) == 0;
+        has_windowed_geometry_ = true;
+    }
+
+    const SDL_DisplayID display = SDL_GetDisplayForWindow(win);
+    if (display == 0) {
+        return false;
+    }
+
+    if (mode == fullscreen_mode::exclusive) {
+        // 0.2.0 的 exclusive 只使用当前显示器的原生/桌面模式；
+        // 不枚举、不切换 640×480 等真实显示模式。
+        const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
+        if (desktop == nullptr) {
+            return false;
+        }
+        SDL_DisplayMode native = *desktop;
+        if (!SDL_SetWindowFullscreenMode(win, &native)) {
+            return false;
+        }
+    } else {
+        // borderless：桌面无边框全屏。
+        if (!SDL_SetWindowFullscreenMode(win, nullptr)) {
+            return false;
+        }
+    }
+
+    if (!SDL_SetWindowFullscreen(win, true)) {
+        SDL_SetWindowFullscreenMode(win, nullptr);
+        return false;
+    }
+
+    fullscreen_mode_ = mode;
+    return true;
+#else
+    (void)mode;
+    return false;
+#endif
+}
+
+fullscreen_mode window::get_fullscreen() const noexcept {
+    return fullscreen_mode_;
+}
+
+bool window::set_bordered(bool bordered) {
+    if (native_handle_ == nullptr) {
+        return false;
+    }
+    if (fullscreen_mode_ != fullscreen_mode::none) {
+        return false;
+    }
+#if defined(WAG_HAVE_SDL3)
+    if (!SDL_SetWindowBordered(as_window(native_handle_), bordered)) {
+        return false;
+    }
+    windowed_bordered_ = bordered;
+    return true;
+#else
+    (void)bordered;
+    return false;
+#endif
+}
+
+bool window::is_bordered() const noexcept {
+#if defined(WAG_HAVE_SDL3)
+    if (native_handle_ == nullptr) {
+        return true;
+    }
+    return (SDL_GetWindowFlags(as_window(native_handle_)) & SDL_WINDOW_BORDERLESS) == 0;
+#else
+    return true;
+#endif
+}
+
+bool window::set_position(int x, int y) {
+    if (native_handle_ == nullptr) {
+        return false;
+    }
+    if (fullscreen_mode_ != fullscreen_mode::none) {
+        windowed_x_ = x;
+        windowed_y_ = y;
+        return true;
+    }
+#if defined(WAG_HAVE_SDL3)
+    return SDL_SetWindowPosition(as_window(native_handle_), x, y);
+#else
+    (void)x;
+    (void)y;
+    return false;
+#endif
+}
+
+bool window::get_position(int& x, int& y) const {
+    if (native_handle_ == nullptr) {
+        return false;
+    }
+#if defined(WAG_HAVE_SDL3)
+    return SDL_GetWindowPosition(as_window(native_handle_), &x, &y);
+#else
+    (void)x;
+    (void)y;
+    return false;
+#endif
+}
+
+display_rect window::get_display_bounds() const {
+    display_rect out{};
+    if (native_handle_ == nullptr) {
+        return out;
+    }
+#if defined(WAG_HAVE_SDL3)
+    SDL_Window* win = as_window(native_handle_);
+    const SDL_DisplayID display = SDL_GetDisplayForWindow(win);
+    if (display == 0) {
+        return out;
+    }
+    SDL_Rect r{};
+    if (!SDL_GetDisplayBounds(display, &r)) {
+        return out;
+    }
+    out.x = r.x;
+    out.y = r.y;
+    out.w = r.w;
+    out.h = r.h;
+#endif
+    return out;
+}
+
+display_rect window::get_display_work_area() const {
+    display_rect out{};
+    if (native_handle_ == nullptr) {
+        return out;
+    }
+#if defined(WAG_HAVE_SDL3)
+    SDL_Window* win = as_window(native_handle_);
+    const SDL_DisplayID display = SDL_GetDisplayForWindow(win);
+    if (display == 0) {
+        return out;
+    }
+    SDL_Rect r{};
+    if (!SDL_GetDisplayUsableBounds(display, &r)) {
+        return out;
+    }
+    out.x = r.x;
+    out.y = r.y;
+    out.w = r.w;
+    out.h = r.h;
+#endif
+    return out;
 }
 
 namespace { void gamepad_shutdown() noexcept; }

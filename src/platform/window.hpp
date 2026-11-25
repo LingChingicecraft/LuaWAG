@@ -92,6 +92,26 @@ struct dimensions {
     }
 };
 
+/// 全屏模式。
+///
+/// 【语义】
+/// · none       ：普通窗口
+/// · borderless ：无边框覆盖当前显示器（不切显示模式）
+/// · exclusive  ：独占全屏，使用当前显示器原生模式
+enum class fullscreen_mode : std::uint8_t {
+    none = 0,
+    borderless = 1,
+    exclusive = 2,
+};
+
+/// 显示器矩形（窗口坐标/屏幕像素；不是 DIP）。
+struct display_rect {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
 // -----------------------------------------------------------------------------
 // gl_context —— 图形上下文的句柄
 //
@@ -313,6 +333,38 @@ public:
  /// 去重是**引擎**的职责（见 engine 的 pending 窗口尺寸），因为只有引擎
  /// 知道"上一次应用的是什么"。平台层只负责把一次请求落地。
     bool set_size(double w, double h);
+
+ // -------------------------------------------------------------------------
+ // 窗口状态 / 全屏
+ // -------------------------------------------------------------------------
+
+ /// 请求切换全屏模式。
+ ///
+ /// 【单位】窗口坐标 / 屏幕像素；不涉及 DIP。
+ /// 【请求】平台可能给不出来 ⇒ 返回 false，由引擎记 L2 并回退窗口模式。
+ /// 【状态保存】进入全屏前保存窗口位置、尺寸、边框；退出时恢复。
+    bool set_fullscreen(fullscreen_mode mode);
+
+ /// 当前全屏模式（最后一次成功应用的模式）。
+    [[nodiscard]] fullscreen_mode get_fullscreen() const noexcept;
+
+ /// 设置窗口是否有边框（窗口化状态使用）。
+    bool set_bordered(bool bordered);
+
+ /// 当前窗口是否有边框。
+    [[nodiscard]] bool is_bordered() const noexcept;
+
+ /// 设置窗口位置（窗口坐标 / 屏幕像素）。
+    bool set_position(int x, int y);
+
+ /// 读取窗口位置；失败时返回 false，x/y 不变。
+    [[nodiscard]] bool get_position(int& x, int& y) const;
+
+ /// 当前窗口所在显示器的完整边界。
+    [[nodiscard]] display_rect get_display_bounds() const;
+
+ /// 当前窗口所在显示器的工作区（扣掉任务栏等系统保留区）。
+    [[nodiscard]] display_rect get_display_work_area() const;
 
  // -------------------------------------------------------------------------
  // 图形上下文的交出（形态乙）
@@ -595,6 +647,19 @@ private:
  /// 【为什么是裸指针】它是"接线"，不是所有权；
  /// 所有权在 engine::impl（input 成员），窗口只借用。
     input_sink* input_sink_ = nullptr;
+
+ // ---- 全屏 / 窗口化状态 ----
+
+ /// 最后一次成功应用的全屏模式。
+    fullscreen_mode fullscreen_mode_ = fullscreen_mode::none;
+
+ /// 进入全屏前的窗口位置 / 客户区尺寸 / 边框状态。
+    int windowed_x_ = 0;
+    int windowed_y_ = 0;
+    double windowed_w_ = 0.0;
+    double windowed_h_ = 0.0;
+    bool windowed_bordered_ = true;
+    bool has_windowed_geometry_ = false;
 };
 
 // -----------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 
 ---
 
-## 0.1.2 — 未发布
+## 0.1.2 — 2026-11-25
 
 ### 文档与内部收口
 
@@ -43,7 +43,6 @@ Luminosa/Lumi
 Luminosa/WagLib
 ```
 
-`WordAdvSeedGame` 与 `WordAdvGamelib` 暂不进入发行包。
 
 ---
 

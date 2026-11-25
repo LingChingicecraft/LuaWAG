@@ -40,7 +40,7 @@ It is suitable for games whose rules are defined by the author—from text adven
 Version history and known issues: [CHANGELOG.md](CHANGELOG.md).
 
 ### Hello World
-Download the [Windows release package](./releases/tag/v0.1.1), extract it, and double-click `LuaWAG.exe`.
+Download the [Windows release package](./releases/tag/v0.1.2), extract it, and double-click `LuaWAG.exe`.
 
 You should see the engine name and a slogan on the splash screen.
 
@@ -120,7 +120,7 @@ The first build compiles everything; after that Ninja rebuilds only changed file
 ### 4. Output
 
 ```text
-build/Release/bin/LuaWAG-Luminosa-ver0.1.1/LuaWAG.exe
+build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
 ```
 
 After the build, `runtime/Luminosa/` is copied next to the executable, so that directory can be launched directly.
@@ -130,7 +130,7 @@ This build is an **empty engine**: `runtime/Luminosa/` currently contains only t
 Actual content lives in the Release package (the splash screen and SeedGame sample) or in the repository's `Projects/` directory. See `Projects/README.md` for the folder-as-cartridge layout.
 
 ```bash
-./build/Release/bin/LuaWAG-Luminosa-ver0.1.1/LuaWAG.exe
+./build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
 ```
 
 ### Troubleshooting
@@ -281,7 +281,7 @@ LuaWAG 不试图替开发者决定“世界应该是什么样”。重力、维�
 版本变化与已知问题见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### Hello World
-下载[Windows发行包](./releases/tag/v0.1.1)，解压后双击打开LuaWAG.exe。
+下载[Windows发行包](./releases/tag/v0.1.2)，解压后双击打开LuaWAG.exe。
 
 应该能看到启动画面上的引擎名字和一句Slogan。
 
@@ -361,7 +361,7 @@ cmake --build build/Release
 ### 4. 产物
 
 ```text
-build/Release/bin/LuaWAG-Luminosa-ver0.1.1/LuaWAG.exe
+build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
 ```
 
 构建完成后，`runtime/Luminosa/` 会自动复制到 exe 旁边，所以这个目录可以直接启动。
@@ -371,7 +371,7 @@ build/Release/bin/LuaWAG-Luminosa-ver0.1.1/LuaWAG.exe
 实际内容在 Release 包（启动画面 + SeedGame 示例）或仓库根目录的 `Projects/` 文件夹里。卡带式目录的用法见 `Projects/README.md`。
 
 ```bash
-./build/Release/bin/LuaWAG-Luminosa-ver0.1.1/LuaWAG.exe
+./build/Release/bin/LuaWAG-Luminosa-ver0.1.2/LuaWAG.exe
 ```
 
 ### 常见问题

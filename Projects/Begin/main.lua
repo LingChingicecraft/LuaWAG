@@ -43,7 +43,7 @@ local function draw_splash()
         return
     end
 
-    -- 绘制表面（帧缓冲）像素；不是窗口尺寸，也不是 DIP。
+    -- 内部渲染目标像素；不是输出窗口尺寸，也不是 DIP。
     local fw, fh = wag.space.get_frame_size()
     local now = os.clock() - (M.start_clock or os.clock())
     shader.draw_fullscreen(M.bg, fw, fh, { now, 0.0, 0.0, 0.0 },

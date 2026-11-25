@@ -54,7 +54,7 @@ S.GROUND = {
     { x1 = -960.0, x2 = -300.0, top = -420.0 },
 }
 
--- 当前绘制表面（帧缓冲）像素尺寸；不是窗口尺寸，也不是 DIP。
+-- 内部渲染目标像素尺寸；不是输出窗口尺寸，也不是 DIP。
 function S.frame_size()
     local w, h = wag.space.get_frame_size()
     return w, h

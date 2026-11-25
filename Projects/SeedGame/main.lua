@@ -332,7 +332,6 @@ function PauseRenderFunc(info)
         return
     end
 
-    local fw, fh = S.frame_size()
     local vp = wag.space.get_viewport()
     local rw, rh = vp.render.w, vp.render.h
     if M.pause_pending then

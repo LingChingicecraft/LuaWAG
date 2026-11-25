@@ -41,9 +41,15 @@ void renderer::light_set_space(const space::rect& r) noexcept {
 }
 
 void renderer::set_render_space(const space::rect& r) noexcept {
+    if (!r.is_valid()) {
+        return;
+    }
+    // band mask 永远生成在 render 空间；光照 shader 必须用同一个空间采样它。
+    render_space_ = r;
+
  // 默认只取一次：启动后的第一帧把当前 render 定格为光照空间。
  // 之后即使 render 改变，也不自动跟随；作者需要显式 light_set_space。
-    if (!light_space_explicit_ && !light_space_initialized_ && r.is_valid()) {
+    if (!light_space_explicit_ && !light_space_initialized_) {
         light_space_ = r;
         light_space_initialized_ = true;
     }
@@ -63,6 +69,7 @@ struct light_gl_state {
     gl_api::int_t u_mask_size = -1;
     gl_api::int_t u_pixel_to_ndc = -1;
     gl_api::int_t u_light_space = -1;
+    gl_api::int_t u_band_space = -1;
     gl_api::uint_t vao = 0;
     gl_api::uint_t quad = 0;
     gl_api::uint_t inst = 0;
@@ -98,10 +105,13 @@ bool read_text_file(const std::string& path, std::string& out, std::string& err)
 
 bool renderer::light_load_shader(const std::string& dir, std::string& err) {
  // 【外部 shader 契约（D-LIGHT-001）】
- // light.vs / light.fs 需要接收 u_light_space = (l, b, w, h)：
+ // light.vs / light.fs 需要接收：
+ //   u_light_space = (l, b, w, h)：光图 / 遮蔽图覆盖的世界矩形
+ //   u_band_space  = (l, b, w, h)：band mask 生成时使用的 render 世界矩形
  //   世界点 → light map 像素：((p - l) / w * map_w, (p - b) / h * map_h)
  //   世界点 → mask UV：       (p - l) / w, (p - b) / h
- // 旧 shader 仍可加载，但它会继续使用自己的固定 1920×1080 常量；
+ //   self_only 的 band mask 必须用 u_band_space 采样，不能用 u_light_space。
+ // 旧 shader 仍可加载，但它会继续使用自己的固定常量；
  // 要支持自定义 light space，必须一起更新。
 
     std::string vs_src;
@@ -127,6 +137,7 @@ bool renderer::light_load_shader(const std::string& dir, std::string& err) {
     g_light.u_mask_size = gl_api::get_uniform_location(prog, "u_mask_size");
     g_light.u_pixel_to_ndc = gl_api::get_uniform_location(prog, "u_pixel_to_ndc");
     g_light.u_light_space = gl_api::get_uniform_location(prog, "u_light_space");
+    g_light.u_band_space = gl_api::get_uniform_location(prog, "u_band_space");
     light_shader_dir_ = dir;
     light_prog_dirty_ = false;
     log::record("light", log::format("光 shader 已加载", dir));
@@ -266,6 +277,13 @@ void renderer::render_light_pass_() {
                            static_cast<float>(light_space_.b),
                            static_cast<float>(light_space_.w),
                            static_cast<float>(light_space_.h));
+    }
+    if (g_light.u_band_space >= 0) {
+        gl_api::uniform_4f(g_light.u_band_space,
+                           static_cast<float>(render_space_.l),
+                           static_cast<float>(render_space_.b),
+                           static_cast<float>(render_space_.w),
+                           static_cast<float>(render_space_.h));
     }
     if (g_light.u_pixel_to_ndc >= 0) {
         const float sx = 2.0f / static_cast<float>(lw);

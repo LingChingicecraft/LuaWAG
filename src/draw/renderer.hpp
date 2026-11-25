@@ -1400,6 +1400,9 @@ private:
     bool light_space_explicit_ = false;
     bool light_space_initialized_ = false;
 
+    /// 当前 render 空间；band mask 采样必须用它，而不是 light_space。
+    space::rect render_space_{-960.0, -540.0, 1920.0, 1080.0};
+
  /// 本帧的光（一次性；帧末渲染后清空）
     std::vector<light::light> lights_;
 

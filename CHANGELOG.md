@@ -5,6 +5,48 @@
 
 ---
 
+## 0.1.2 — 未发布
+
+### 文档与内部收口
+
+- **窗口尺寸契约去 DIP 化**  
+  引擎内部的窗口尺寸标识统一为 `get_window_size` / `dimensions` 等；  
+  公开文档明确：窗口尺寸不是 DIP，`display_scale` 只作诊断，不参与几何换算。  
+  本次只改命名与契约，不改变窗口数值行为。
+
+- **`__gc` 与确定性**  
+  公开文档新增：`__gc` 不在三条逻辑帧线（`ExtFrameFunc` / `MainFrameFunc` / `PauseFrameFunc`）的协议内；  
+  用 `__gc` 改游戏状态会主动放弃确定性，帧线架构救不回来。
+
+### 已知限制
+
+- **`__gc` 抛出的错误不会产生 L1**  
+  LuaJIT 不会把 finalizer 错误抛回 `lua_cpcall`，而是打印或吞掉；  
+  0.1.1 已确认该行为，0.1.2 及以后不再承诺 `__gc` 错误的 L1 回执。  
+  业务收尾应放在 `on_game_exit`；不要把 `__gc` 当游戏生命周期。
+
+- **没有真正的 DPI-aware UI**  
+  当前窗口尺寸与绘制表面像素相等，是因为未启用高像素密度；  
+  150% 缩放下不会自动乘 1.5。窗口尺寸不是 DIP。
+
+- **自定义光照空间下的 band mask 限制**  
+  仍与 0.1.1 相同；band mask 按 render 空间生成，未映射到 light space。
+
+### 发行包
+
+仍只包含：
+
+```text
+Luminosa/Project   启动画面
+Luminosa/SeedGame  弹幕 ACT 示例
+Luminosa/Lumi
+Luminosa/WagLib
+```
+
+`WordAdvSeedGame` 与 `WordAdvGamelib` 暂不进入发行包。
+
+---
+
 ## 0.1.1 — 2026-11-24
 
 ### 修复
@@ -46,7 +88,8 @@
 
 - **`__gc` 抛出的错误没有 L1 回执**  
   `__gc` 正常执行时仍能写日志；但如果 `__gc` 自身抛错，LuaJIT 会吞掉错误，当前不会产生 L1。  
-  业务收尾仍应放在 `on_game_exit`；受保护的 finalizer 批处理留给后续版本。
+  0.1.2 已复核：公开 LuaJIT API 无法捕获该错误；不再把“受保护 finalizer 批处理”列为后续修复。  
+  业务收尾仍应放在 `on_game_exit`，不要依赖 `__gc` 的错误回执。
 
 ### 计划在 0.2.0 处理
 
